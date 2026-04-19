@@ -4,6 +4,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { getTraderAccountPDA, getTraderVaultPDA } from "../lib/pdas";
 import { WSOL_MINT, USDC_MINT, JUPITER_V6 } from "../lib/constants";
 import { PublicKey } from "@solana/web3.js";
+import * as anchor from "@coral-xyz/anchor";
 
 export function useSignalSwap() {
     const program = useProgram();
