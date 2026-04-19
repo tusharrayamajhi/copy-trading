@@ -17,6 +17,7 @@ declare_id!("2FApMPHXrWvHpmtbvcKbPciKBqJwFFQ6Rg7eUdhQRapj");
 const USDC_MINT_PUBKEY: &str = "Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr";
 const WSOL_MINT_PUBKEY: &str = "So11111111111111111111111111111111111111112";
 const JUPITER_V6_PROGRAM_ID: &str = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4";
+const MAX_STALE_AGE: u64 = 3600;
 
 #[program]
 pub mod defi_copy_trade {
@@ -68,7 +69,7 @@ pub mod defi_copy_trade {
             .map_err(|_| ErrorCode::InvalidPythPriceFeed)?;
         let current_time = Clock::get()?.unix_timestamp;
         let price_data = price_feed
-            .get_price_no_older_than(current_time, 60)
+            .get_price_no_older_than(current_time, MAX_STALE_AGE)
             .ok_or(ErrorCode::PythPriceStale)?;
 
         let deposit_usd_value =
@@ -187,10 +188,10 @@ pub mod defi_copy_trade {
             .map_err(|_| ErrorCode::InvalidPythPriceFeed)?;
         let time = Clock::get()?.unix_timestamp;
         let sol_p = sol_feed
-            .get_price_no_older_than(time, 60)
+            .get_price_no_older_than(time, MAX_STALE_AGE)
             .ok_or(ErrorCode::PythPriceStale)?;
         let usdc_p = usdc_feed
-            .get_price_no_older_than(time, 60)
+            .get_price_no_older_than(time, MAX_STALE_AGE)
             .ok_or(ErrorCode::PythPriceStale)?;
 
         // 2. Calculate Pool Value

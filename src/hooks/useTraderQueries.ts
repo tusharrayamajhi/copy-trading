@@ -20,7 +20,7 @@ export function useAllTraders() {
             try {
                 const accounts = await (program.account as any).traderAccount.all();
                 setTraders(accounts.map((a: any) => ({
-                    publicKey: a.publicKey.toBase58(),
+                    publicKey: a.account.traderWallet.toBase58(),
                     account: a.account,
                 })));
             } catch (err) {

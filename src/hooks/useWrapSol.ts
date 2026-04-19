@@ -62,7 +62,10 @@ export function useWrapSol() {
                 console.error("Transaction simulation logs:", error.logs);
                 throw new Error("Transaction simulation failed: " + error.logs.join(", "));
             }
-            throw error;
+            if (error.message && error.message.includes("Unexpected error")) {
+                throw new Error("Wrapping failed! Make sure you have enough SOL to cover both the amount and network fees. (Try leaving ~0.01 SOL in your wallet)");
+            }
+            throw new Error(error.message || "Failed to wrap SOL.");
         }
     };
 

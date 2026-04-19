@@ -12,17 +12,20 @@ export function useWithdraw() {
     const program = useProgram();
     const { publicKey } = useWallet();
 
-    return async (traderWallet: PublicKey) => {
+    return async (traderAccountPDA: PublicKey) => {
         if (!program || !publicKey) throw new Error("Wallet not connected");
 
-        const [traderAccount] = getTraderAccountPDA(traderWallet);
+        // We passed linkedTrader (the PDA of the trader account), so we fetch it first
+        const traderData = await (program as any).account.traderAccount.fetch(traderAccountPDA);
+        const traderWallet = traderData.traderWallet as PublicKey;
+
+        const [traderAccount] = getTraderAccountPDA(traderWallet); // Same as traderAccountPDA
         const [traderVault] = getTraderVaultPDA(traderWallet);
-        const [investorAccount] = getInvestorAccountPDA(publicKey, traderAccount);
+        const [investorAccount] = getInvestorAccountPDA(publicKey, traderAccountPDA);
         const [platformConfig] = PublicKey.findProgramAddressSync(
             [Buffer.from("platform_config")], program.programId
         );
 
-        const traderData = await (program as any).account.traderAccount.fetch(traderAccount);
         const sharesMint = traderData.traderVaultSharesMint as PublicKey;
 
         const tx = await program.methods
