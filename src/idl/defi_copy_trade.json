@@ -1,0 +1,511 @@
+{
+    "version": "0.1.0",
+    "name": "defi_copy_trade",
+    "instructions": [
+        {
+            "name": "initializePlatform",
+            "accounts": [
+                {
+                    "name": "admin",
+                    "isMut": true,
+                    "isSigner": true
+                },
+                {
+                    "name": "platformConfig",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
+                    "name": "systemProgram",
+                    "isMut": false,
+                    "isSigner": false
+                }
+            ],
+            "args": [
+                {
+                    "name": "platformFeePercentage",
+                    "type": "u16"
+                },
+                {
+                    "name": "platformFeeRecipient",
+                    "type": "publicKey"
+                }
+            ]
+        },
+        {
+            "name": "createTrader",
+            "accounts": [
+                {
+                    "name": "trader",
+                    "isMut": true,
+                    "isSigner": true
+                },
+                {
+                    "name": "traderAccount",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
+                    "name": "traderVault",
+                    "isMut": false,
+                    "isSigner": false
+                },
+                {
+                    "name": "traderVaultTokenSol",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
+                    "name": "traderVaultTokenUsdc",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
+                    "name": "traderVaultSharesMint",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
+                    "name": "solMint",
+                    "isMut": false,
+                    "isSigner": false
+                },
+                {
+                    "name": "usdcMint",
+                    "isMut": false,
+                    "isSigner": false
+                },
+                {
+                    "name": "systemProgram",
+                    "isMut": false,
+                    "isSigner": false
+                },
+                {
+                    "name": "tokenProgram",
+                    "isMut": false,
+                    "isSigner": false
+                },
+                {
+                    "name": "associatedTokenProgram",
+                    "isMut": false,
+                    "isSigner": false
+                },
+                {
+                    "name": "rent",
+                    "isMut": false,
+                    "isSigner": false
+                }
+            ],
+            "args": [
+                {
+                    "name": "commissionPercentage",
+                    "type": "u16"
+                }
+            ]
+        },
+        {
+            "name": "depositFunds",
+            "accounts": [
+                {
+                    "name": "investor",
+                    "isMut": true,
+                    "isSigner": true
+                },
+                {
+                    "name": "investorAccount",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
+                    "name": "traderAccount",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
+                    "name": "traderVault",
+                    "isMut": false,
+                    "isSigner": false
+                },
+                {
+                    "name": "investorSolAta",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
+                    "name": "investorSharesAta",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
+                    "name": "traderVaultTokenSol",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
+                    "name": "traderVaultSharesMint",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
+                    "name": "pythSolUsdPriceFeed",
+                    "isMut": false,
+                    "isSigner": false
+                },
+                {
+                    "name": "solMint",
+                    "isMut": false,
+                    "isSigner": false
+                },
+                {
+                    "name": "usdcMint",
+                    "isMut": false,
+                    "isSigner": false
+                },
+                {
+                    "name": "systemProgram",
+                    "isMut": false,
+                    "isSigner": false
+                },
+                {
+                    "name": "tokenProgram",
+                    "isMut": false,
+                    "isSigner": false
+                },
+                {
+                    "name": "associatedTokenProgram",
+                    "isMut": false,
+                    "isSigner": false
+                },
+                {
+                    "name": "rent",
+                    "isMut": false,
+                    "isSigner": false
+                }
+            ],
+            "args": [
+                {
+                    "name": "amount",
+                    "type": "u64"
+                }
+            ]
+        },
+        {
+            "name": "signalSwap",
+            "accounts": [
+                {
+                    "name": "trader",
+                    "isMut": true,
+                    "isSigner": true
+                },
+                {
+                    "name": "traderAccount",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
+                    "name": "traderVault",
+                    "isMut": false,
+                    "isSigner": false
+                },
+                {
+                    "name": "jupiterProgram",
+                    "isMut": false,
+                    "isSigner": false
+                },
+                {
+                    "name": "tokenProgram",
+                    "isMut": false,
+                    "isSigner": false
+                }
+            ],
+            "args": [
+                {
+                    "name": "targetAsset",
+                    "type": {
+                        "defined": "AssetType"
+                    }
+                },
+                {
+                    "name": "amountIn",
+                    "type": "u64"
+                },
+                {
+                    "name": "data",
+                    "type": "bytes"
+                }
+            ]
+        },
+        {
+            "name": "withdrawFunds",
+            "accounts": [
+                {
+                    "name": "investor",
+                    "isMut": true,
+                    "isSigner": true
+                },
+                {
+                    "name": "investorAccount",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
+                    "name": "traderAccount",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
+                    "name": "traderVault",
+                    "isMut": false,
+                    "isSigner": false
+                },
+                {
+                    "name": "traderVaultSharesMint",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
+                    "name": "investorSharesAta",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
+                    "name": "traderVaultTokenSol",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
+                    "name": "traderVaultTokenUsdc",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
+                    "name": "platformFeeRecipientAta",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
+                    "name": "traderFeeRecipientAta",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
+                    "name": "investorReceiveSolAta",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
+                    "name": "investorReceiveUsdcAta",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
+                    "name": "platformConfig",
+                    "isMut": false,
+                    "isSigner": false
+                },
+                {
+                    "name": "pythSolUsdPriceFeed",
+                    "isMut": false,
+                    "isSigner": false
+                },
+                {
+                    "name": "pythUsdcUsdPriceFeed",
+                    "isMut": false,
+                    "isSigner": false
+                },
+                {
+                    "name": "solMint",
+                    "isMut": false,
+                    "isSigner": false
+                },
+                {
+                    "name": "usdcMint",
+                    "isMut": false,
+                    "isSigner": false
+                },
+                {
+                    "name": "systemProgram",
+                    "isMut": false,
+                    "isSigner": false
+                },
+                {
+                    "name": "tokenProgram",
+                    "isMut": false,
+                    "isSigner": false
+                },
+                {
+                    "name": "associatedTokenProgram",
+                    "isMut": false,
+                    "isSigner": false
+                },
+                {
+                    "name": "rent",
+                    "isMut": false,
+                    "isSigner": false
+                }
+            ],
+            "args": []
+        }
+    ],
+    "accounts": [
+        {
+            "name": "PlatformConfig",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "admin",
+                        "type": "publicKey"
+                    },
+                    {
+                        "name": "platformFeePercentage",
+                        "type": "u16"
+                    },
+                    {
+                        "name": "platformFeeRecipient",
+                        "type": "publicKey"
+                    },
+                    {
+                        "name": "bump",
+                        "type": "u8"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "TraderAccount",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "traderWallet",
+                        "type": "publicKey"
+                    },
+                    {
+                        "name": "commissionPercentage",
+                        "type": "u16"
+                    },
+                    {
+                        "name": "traderVaultTokenSol",
+                        "type": "publicKey"
+                    },
+                    {
+                        "name": "traderVaultTokenUsdc",
+                        "type": "publicKey"
+                    },
+                    {
+                        "name": "traderVaultSharesMint",
+                        "type": "publicKey"
+                    },
+                    {
+                        "name": "currentAsset",
+                        "type": {
+                            "defined": "AssetType"
+                        }
+                    },
+                    {
+                        "name": "totalSharesValueUsd",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "totalTrades",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "lifetimeProfitUsd",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "lifetimeLossUsd",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "bump",
+                        "type": "u8"
+                    },
+                    {
+                        "name": "vaultBump",
+                        "type": "u8"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "InvestorAccount",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "investorWallet",
+                        "type": "publicKey"
+                    },
+                    {
+                        "name": "linkedTrader",
+                        "type": "publicKey"
+                    },
+                    {
+                        "name": "initialDepositUsdValue",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "bump",
+                        "type": "u8"
+                    }
+                ]
+            }
+        }
+    ],
+    "types": [
+        {
+            "name": "AssetType",
+            "type": {
+                "kind": "enum",
+                "variants": [
+                    {
+                        "name": "Sol"
+                    },
+                    {
+                        "name": "Usdc"
+                    }
+                ]
+            }
+        }
+    ],
+    "errors": [
+        {
+            "code": 6000,
+            "name": "InvalidCommissionPercentage",
+            "msg": "Invalid Commission"
+        },
+        {
+            "code": 6001,
+            "name": "DepositAmountZero",
+            "msg": "Amount Zero"
+        },
+        {
+            "code": 6002,
+            "name": "PythPriceStale",
+            "msg": "Pyth Stale"
+        },
+        {
+            "code": 6003,
+            "name": "Overflow",
+            "msg": "Overflow"
+        },
+        {
+            "code": 6004,
+            "name": "Underflow",
+            "msg": "Underflow"
+        },
+        {
+            "code": 6005,
+            "name": "InvalidPythPriceFeed",
+            "msg": "Invalid Pyth Account"
+        },
+        {
+            "code": 6006,
+            "name": "NoSharesToWithdraw",
+            "msg": "No Shares"
+        }
+    ]
+}
