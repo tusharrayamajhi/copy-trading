@@ -25,10 +25,6 @@
                 {
                     "name": "platformFeePercentage",
                     "type": "u16"
-                },
-                {
-                    "name": "platformFeeRecipient",
-                    "type": "publicKey"
                 }
             ]
         },
@@ -76,17 +72,17 @@
                     "isSigner": false
                 },
                 {
-                    "name": "systemProgram",
-                    "isMut": false,
-                    "isSigner": false
-                },
-                {
                     "name": "tokenProgram",
                     "isMut": false,
                     "isSigner": false
                 },
                 {
                     "name": "associatedTokenProgram",
+                    "isMut": false,
+                    "isSigner": false
+                },
+                {
+                    "name": "systemProgram",
                     "isMut": false,
                     "isSigner": false
                 },
@@ -152,32 +148,12 @@
                     "isSigner": false
                 },
                 {
-                    "name": "solMint",
-                    "isMut": false,
-                    "isSigner": false
-                },
-                {
-                    "name": "usdcMint",
-                    "isMut": false,
-                    "isSigner": false
-                },
-                {
-                    "name": "systemProgram",
-                    "isMut": false,
-                    "isSigner": false
-                },
-                {
                     "name": "tokenProgram",
                     "isMut": false,
                     "isSigner": false
                 },
                 {
-                    "name": "associatedTokenProgram",
-                    "isMut": false,
-                    "isSigner": false
-                },
-                {
-                    "name": "rent",
+                    "name": "systemProgram",
                     "isMut": false,
                     "isSigner": false
                 }
@@ -208,7 +184,32 @@
                     "isSigner": false
                 },
                 {
-                    "name": "jupiterProgram",
+                    "name": "traderVaultTokenSol",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
+                    "name": "traderVaultTokenUsdc",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
+                    "name": "platformConfig",
+                    "isMut": false,
+                    "isSigner": false
+                },
+                {
+                    "name": "platformBankSol",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
+                    "name": "platformBankUsdc",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
+                    "name": "pythSolUsdPriceFeed",
                     "isMut": false,
                     "isSigner": false
                 },
@@ -228,10 +229,6 @@
                 {
                     "name": "amountIn",
                     "type": "u64"
-                },
-                {
-                    "name": "data",
-                    "type": "bytes"
                 }
             ]
         },
@@ -259,12 +256,12 @@
                     "isSigner": false
                 },
                 {
-                    "name": "traderVaultSharesMint",
+                    "name": "investorSharesAta",
                     "isMut": true,
                     "isSigner": false
                 },
                 {
-                    "name": "investorSharesAta",
+                    "name": "traderVaultSharesMint",
                     "isMut": true,
                     "isSigner": false
                 },
@@ -279,28 +276,8 @@
                     "isSigner": false
                 },
                 {
-                    "name": "platformFeeRecipientAta",
+                    "name": "investorReceiveAta",
                     "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "traderFeeRecipientAta",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "investorReceiveSolAta",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "investorReceiveUsdcAta",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "platformConfig",
-                    "isMut": false,
                     "isSigner": false
                 },
                 {
@@ -314,32 +291,7 @@
                     "isSigner": false
                 },
                 {
-                    "name": "solMint",
-                    "isMut": false,
-                    "isSigner": false
-                },
-                {
-                    "name": "usdcMint",
-                    "isMut": false,
-                    "isSigner": false
-                },
-                {
-                    "name": "systemProgram",
-                    "isMut": false,
-                    "isSigner": false
-                },
-                {
                     "name": "tokenProgram",
-                    "isMut": false,
-                    "isSigner": false
-                },
-                {
-                    "name": "associatedTokenProgram",
-                    "isMut": false,
-                    "isSigner": false
-                },
-                {
-                    "name": "rent",
                     "isMut": false,
                     "isSigner": false
                 }
@@ -436,20 +388,8 @@
                 "kind": "struct",
                 "fields": [
                     {
-                        "name": "investorWallet",
-                        "type": "publicKey"
-                    },
-                    {
-                        "name": "linkedTrader",
-                        "type": "publicKey"
-                    },
-                    {
                         "name": "initialDepositUsdValue",
                         "type": "u64"
-                    },
-                    {
-                        "name": "bump",
-                        "type": "u8"
                     }
                 ]
             }
@@ -506,6 +446,11 @@
             "code": 6006,
             "name": "NoSharesToWithdraw",
             "msg": "No Shares"
+        },
+        {
+            "code": 6007,
+            "name": "Unauthorized",
+            "msg": "Unauthorized"
         }
     ]
 }

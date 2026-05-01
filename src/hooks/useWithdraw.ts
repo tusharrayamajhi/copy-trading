@@ -6,7 +6,8 @@ import {
 } from "../lib/pdas";
 import { getATA } from "../lib/ata";
 import { PublicKey, SystemProgram } from "@solana/web3.js";
-import { WSOL_MINT, USDC_MINT, PYTH_SOL_USD, PYTH_USDC_USD, PLATFORM_FEE_RECIPIENT } from "../lib/constants";
+import { WSOL_MINT, USDC_MINT, PYTH_SOL_USD, PYTH_USDC_USD } from "../lib/constants";
+import * as anchor from "@coral-xyz/anchor";
 
 export function useWithdraw() {
     const program = useProgram();
@@ -15,7 +16,6 @@ export function useWithdraw() {
     return async (traderAccountPDA: PublicKey) => {
         if (!program || !publicKey) throw new Error("Wallet not connected");
 
-        // We passed linkedTrader (the PDA of the trader account), so we fetch it first
         const traderData = await (program as any).account.traderAccount.fetch(traderAccountPDA);
         const traderWallet = traderData.traderWallet as PublicKey;
 
@@ -27,6 +27,10 @@ export function useWithdraw() {
         );
 
         const sharesMint = traderData.traderVaultSharesMint as PublicKey;
+        
+        // Determine what asset we are receiving (what the vault currently holds)
+        const currentAsset = Object.keys(traderData.currentAsset || {})[0]?.toLowerCase() === "usdc" ? "usdc" : "sol";
+        const receivingMint = currentAsset === "usdc" ? USDC_MINT : WSOL_MINT;
 
         const tx = await program.methods
             .withdrawFunds()
@@ -35,22 +39,14 @@ export function useWithdraw() {
                 investorAccount,
                 traderAccount,
                 traderVault,
-                traderVaultSharesMint: sharesMint,
                 investorSharesAta: getATA(sharesMint, publicKey),
+                traderVaultSharesMint: sharesMint,
                 traderVaultTokenSol: getATA(WSOL_MINT, traderVault, true),
                 traderVaultTokenUsdc: getATA(USDC_MINT, traderVault, true),
-                // Platform fee → your fee wallet
-                platformFeeRecipientAta: getATA(WSOL_MINT, PLATFORM_FEE_RECIPIENT),
-                // Trader fee → trader's personal ATA
-                traderFeeRecipientAta: getATA(WSOL_MINT, traderWallet),
-                investorReceiveSolAta: getATA(WSOL_MINT, publicKey),
-                investorReceiveUsdcAta: getATA(USDC_MINT, publicKey),
-                platformConfig,
+                investorReceiveAta: getATA(receivingMint, publicKey),
                 pythSolUsdPriceFeed: PYTH_SOL_USD,
                 pythUsdcUsdPriceFeed: PYTH_USDC_USD,
-                solMint: WSOL_MINT,
-                usdcMint: USDC_MINT,
-                systemProgram: SystemProgram.programId,
+                tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
             })
             .rpc();
 

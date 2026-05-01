@@ -1,9 +1,11 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowRight, Trophy, Shield, Zap } from "lucide-react";
 
 export default function Home() {
   return (
-    <main className="flex flex-col items-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+    <main className="flex flex-col items-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 relative">
       <div className="text-center max-w-3xl mx-auto mb-16">
         <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-8">
           The Premier <br />

@@ -8,13 +8,13 @@ import { useDeposit } from "../../src/hooks/useDeposit";
 import { useWithdraw } from "../../src/hooks/useWithdraw";
 import { useWrapSol } from "../../src/hooks/useWrapSol";
 import { PublicKey } from "@solana/web3.js";
-import { Activity, TrendingUp, Search, UserCheck, Layers, Compass, ArrowDownToLine, RefreshCw } from "lucide-react";
+import { Activity, TrendingUp, Search, UserCheck, Layers, Compass, ArrowDownToLine, RefreshCw, DollarSign } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function InvestorDashboard() {
   const { publicKey } = useWallet();
   const { traders, loading: loadingTraders } = useAllTraders();
-  const { investments, loading: loadingInvestments, refetch: refetchInvestments } = useMyInvestments(publicKey);
+  const { investments, loading: loadingInvestments, refetch: refetchInvestments } = useMyInvestments(publicKey, traders);
   const depositParams = useDeposit();
   const withdrawParams = useWithdraw();
   const { wrap } = useWrapSol();
@@ -95,7 +95,7 @@ export default function InvestorDashboard() {
         <p className="text-slate-400 max-w-2xl mx-auto">Discover top performing traders or manage your active vault allocations.</p>
       </div>
 
-      <div className="flex justify-center mb-8">
+      <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
         <div className="bg-slate-800 p-1 rounded-xl flex space-x-2">
           <button 
             onClick={() => setActiveTab("discover")}
@@ -262,25 +262,39 @@ export default function InvestorDashboard() {
           ) : (
              <div className="space-y-4">
                <h3 className="text-xl font-bold mb-4">Vaults I Am Following</h3>
-               {investments.map((inv) => (
+               {investments.map((inv) => {
+                 const linkedTrader = traders.find(t => t.publicKey === inv.linkedTraderPubkey);
+                 const initialUsd = inv.account.initialDepositUsdValue?.toNumber() / 10**6 || 0;
+                 
+                 return (
                  <div key={inv.publicKey} className="bg-slate-800/80 p-6 rounded-2xl border border-slate-700 flex flex-col md:flex-row justify-between items-center gap-6 shadow-lg">
                     <div className="flex-1 w-full truncate">
                       <p className="text-sm text-slate-400 mb-1">Trader address</p>
-                      <p className="font-mono text-cyan-400 truncate">{inv.account.linkedTrader.toBase58()}</p>
+                      <p className="font-mono text-cyan-400 truncate">{inv.linkedTraderPubkey}</p>
                     </div>
-                    <div className="text-left md:text-right w-full md:w-auto">
-                      <p className="text-sm text-slate-400 mb-1">Initial Deposit Snapshot (USD)</p>
-                      <p className="text-xl font-bold">${(inv.account.initialDepositUsdValue?.toNumber() / 10**6).toFixed(2) || "0.00"}</p>
+                    
+                    <div className="flex justify-between items-center gap-8 text-left md:text-right w-full md:w-auto">
+                      <div>
+                        <p className="text-sm text-slate-400 mb-1">Initial Deposit</p>
+                        <p className="text-xl font-bold text-slate-300">${initialUsd.toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-slate-400 mb-1">Vault Asset</p>
+                        <p className="text-xl font-bold">{linkedTrader?.account?.currentAsset?.sol ? "SOL" : "USDC"}</p>
+                        <p className="text-xs text-slate-500 mt-1">True Value finalized on Withdraw</p>
+                      </div>
                     </div>
+
                     <button 
-                      onClick={() => handleWithdraw(inv.account.linkedTrader.toBase58())}
+                      onClick={() => handleWithdraw(inv.linkedTraderPubkey)}
                       disabled={submitting}
                       className="w-full md:w-auto bg-red-500/10 hover:bg-red-500/20 border border-red-500/50 text-red-400 font-bold px-6 py-3 rounded-xl transition-all"
                     >
                       {submitting ? "Withdrawing..." : "Withdraw & Stop Copying"}
                     </button>
                  </div>
-               ))}
+                 );
+               })}
              </div>
           )}
         </div>

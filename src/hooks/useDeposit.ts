@@ -39,8 +39,7 @@ export function useDeposit() {
                 traderVaultTokenSol: vaultSolAta,
                 traderVaultSharesMint: sharesMint,
                 pythSolUsdPriceFeed: PYTH_SOL_USD,
-                solMint: WSOL_MINT,
-                usdcMint: USDC_MINT,
+                tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
                 systemProgram: SystemProgram.programId,
             })
             .rpc();
