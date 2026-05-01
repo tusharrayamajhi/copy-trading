@@ -3,7 +3,7 @@ import { useProgram } from "../lib/program";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { getTraderAccountPDA, getTraderVaultPDA, getInvestorAccountPDA } from "../lib/pdas";
 import { getATA } from "../lib/ata";
-import { PublicKey, SystemProgram } from "@solana/web3.js";
+import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
 import { WSOL_MINT, USDC_MINT, PYTH_SOL_USD } from "../lib/constants";
 import * as anchor from "@coral-xyz/anchor";
 import BN from "bn.js";
@@ -12,7 +12,7 @@ export function useDeposit() {
     const program = useProgram();
     const { publicKey } = useWallet();
 
-    return async (traderWallet: PublicKey, amountLamports: bigint) => {
+    return async (traderWallet: PublicKey, amountLamports: bigint, priceOverride?: number) => {
         if (!program || !publicKey) throw new Error("Wallet not connected");
 
         const [traderAccount] = getTraderAccountPDA(traderWallet);
@@ -27,21 +27,29 @@ export function useDeposit() {
         const investorSharesAta = getATA(sharesMint, publicKey);
         const vaultSolAta = getATA(WSOL_MINT, traderVault, true);
 
+        let priceValue = priceOverride;
+        if (!priceValue) {
+            const { getSolPrice } = await import("../lib/price");
+            priceValue = await getSolPrice();
+        }
+        const priceBN = new anchor.BN(Math.floor(priceValue * 1e6));
+
         const tx = await program.methods
-            .depositFunds(new BN(amountLamports.toString()))
+            .depositFunds(new BN(amountLamports.toString()), priceBN)
             .accounts({
                 investor: publicKey,
                 investorAccount,
                 traderAccount,
                 traderVault,
-                investorSolAta,
+                investorSolAta, 
                 investorSharesAta,
                 traderVaultTokenSol: vaultSolAta,
                 traderVaultSharesMint: sharesMint,
-                pythSolUsdPriceFeed: PYTH_SOL_USD,
                 tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+                associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
                 systemProgram: SystemProgram.programId,
-            })
+                rent: SYSVAR_RENT_PUBKEY,
+            } as any)
             .rpc();
 
         return tx;

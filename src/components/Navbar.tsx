@@ -1,15 +1,50 @@
 "use client";
 import Link from "next/link";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
-import { ArrowRightLeft } from "lucide-react";
+import { ArrowRightLeft, Landmark } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useConnection } from "@solana/wallet-adapter-react";
+import { PLATFORM_BANK_SOL, PLATFORM_BANK_USDC } from "../lib/constants";
 
 export default function Navbar() {
+  const { connection } = useConnection();
   const [mounted, setMounted] = useState(false);
+  const [bankBalances, setBankBalances] = useState<{ sol: number, usdc: number } | null>(null);
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    const fetchBankBalances = async () => {
+        try {
+            // 1. Fetch WSOL balance (Token Account)
+            let solAmount = 0;
+            try {
+                const solTokenBal = await connection.getTokenAccountBalance(PLATFORM_BANK_SOL);
+                solAmount = Number(solTokenBal.value.amount) / 1e9; // WSOL uses 9 decimals
+            } catch (e) {
+                console.warn("SOL Bank (WSOL) not initialized");
+            }
+            
+            // 2. Fetch USDC balance (Token Account)
+            let usdcAmount = 0;
+            try {
+                const usdcBal = await connection.getTokenAccountBalance(PLATFORM_BANK_USDC);
+                usdcAmount = Number(usdcBal.value.amount) / 1e6; // USDC uses 6 decimals
+            } catch (e) {
+                console.warn("USDC Bank not initialized");
+            }
+
+            setBankBalances({
+                sol: solAmount,
+                usdc: usdcAmount
+            });
+        } catch (e) {
+            console.error("Failed to fetch bank balances:", e);
+        }
+    };
+    fetchBankBalances();
+    const interval = setInterval(fetchBankBalances, 10000);
+    return () => clearInterval(interval);
+  }, [connection]);
 
   return (
     <nav className="fixed top-0 w-full z-50 bg-slate-900/80 backdrop-blur-md border-b border-slate-800">
@@ -23,10 +58,26 @@ export default function Navbar() {
               SolCopy
             </span>
           </Link>
-          <div className="hidden md:flex space-x-8 items-center font-medium">
+          <div className="hidden md:flex space-x-6 items-center font-medium">
             <Link href="/" className="text-slate-300 hover:text-white transition">Home</Link>
             <Link href="/trader" className="text-slate-300 hover:text-white transition">Trader Portal</Link>
             <Link href="/investor" className="text-slate-300 hover:text-white transition">Investor Portal</Link>
+            
+            {/* Bank Testing Info */}
+            <div className="flex items-center gap-4 px-4 py-1.5 bg-slate-950 border border-slate-800 rounded-full">
+                <Landmark className="w-4 h-4 text-amber-500" />
+                <div className="flex gap-3 text-[10px] font-bold uppercase tracking-tighter">
+                    <div className="flex flex-col">
+                        <span className="text-slate-500">Bank SOL</span>
+                        <span className="text-amber-500">{bankBalances?.sol.toFixed(2) || "0.00"}</span>
+                    </div>
+                    <div className="w-px h-4 bg-slate-800 self-center" />
+                    <div className="flex flex-col">
+                        <span className="text-slate-500">Bank USDC</span>
+                        <span className="text-amber-500">${bankBalances?.usdc.toFixed(2) || "0.00"}</span>
+                    </div>
+                </div>
+            </div>
           </div>
           <div className="flex items-center">
             {mounted ? (

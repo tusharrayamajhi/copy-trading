@@ -13,18 +13,15 @@ export function useWithdraw() {
     const program = useProgram();
     const { publicKey } = useWallet();
 
-    return async (traderAccountPDA: PublicKey) => {
+    return async (traderAccountPDA: PublicKey, priceOverride?: number) => {
         if (!program || !publicKey) throw new Error("Wallet not connected");
 
         const traderData = await (program as any).account.traderAccount.fetch(traderAccountPDA);
         const traderWallet = traderData.traderWallet as PublicKey;
 
-        const [traderAccount] = getTraderAccountPDA(traderWallet); // Same as traderAccountPDA
+        const [traderAccount] = getTraderAccountPDA(traderWallet);
         const [traderVault] = getTraderVaultPDA(traderWallet);
         const [investorAccount] = getInvestorAccountPDA(publicKey, traderAccountPDA);
-        const [platformConfig] = PublicKey.findProgramAddressSync(
-            [Buffer.from("platform_config")], program.programId
-        );
 
         const sharesMint = traderData.traderVaultSharesMint as PublicKey;
         
@@ -32,8 +29,15 @@ export function useWithdraw() {
         const currentAsset = Object.keys(traderData.currentAsset || {})[0]?.toLowerCase() === "usdc" ? "usdc" : "sol";
         const receivingMint = currentAsset === "usdc" ? USDC_MINT : WSOL_MINT;
 
+        let priceValue = priceOverride;
+        if (!priceValue) {
+            const { getSolPrice } = await import("../lib/price");
+            priceValue = await getSolPrice();
+        }
+        const priceBN = new anchor.BN(Math.floor(priceValue * 1e6));
+
         const tx = await program.methods
-            .withdrawFunds()
+            .withdrawFunds(priceBN)
             .accounts({
                 investor: publicKey,
                 investorAccount,
@@ -44,8 +48,6 @@ export function useWithdraw() {
                 traderVaultTokenSol: getATA(WSOL_MINT, traderVault, true),
                 traderVaultTokenUsdc: getATA(USDC_MINT, traderVault, true),
                 investorReceiveAta: getATA(receivingMint, publicKey),
-                pythSolUsdPriceFeed: PYTH_SOL_USD,
-                pythUsdcUsdPriceFeed: PYTH_USDC_USD,
                 tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
             })
             .rpc();

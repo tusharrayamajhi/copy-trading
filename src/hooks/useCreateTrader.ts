@@ -32,9 +32,11 @@ export function useCreateTrader() {
                 traderVaultSharesMint: sharesMint,
                 solMint: WSOL_MINT,
                 usdcMint: USDC_MINT,
+                tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+                associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
                 systemProgram: SystemProgram.programId,
-                // token_program, associated_token_program, rent auto-resolved by Anchor
-            })
+                rent: SYSVAR_RENT_PUBKEY,
+            } as any)
             .rpc();
 
         return tx;

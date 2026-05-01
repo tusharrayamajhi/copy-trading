@@ -9,11 +9,12 @@ export function useWrapSol() {
     const { connection } = useConnection();
     const { publicKey, sendTransaction } = useWallet();
 
-    const wrap = async (amountLamports: bigint) => {
+    const wrap = async (amount: number) => {
         if (!publicKey) throw new Error("Wallet not connected");
 
         const wsolAta = getATA(WSOL_MINT, publicKey, false);
         const tx = new Transaction();
+        const LAMPORTS_PER_SOL = 1_000_000_000;
 
         try {
             const latestBlockhash = await connection.getLatestBlockhash();
@@ -36,11 +37,15 @@ export function useWrapSol() {
             }
 
             // 2. Transfer Native SOL to the WSOL ATA
+            // Ensure amountLamports is a whole number integer
+            const lamportsAsInteger = Math.floor(parseFloat(amount.toString()) * LAMPORTS_PER_SOL);
+            
             tx.add(
                 SystemProgram.transfer({
                     fromPubkey: publicKey,
                     toPubkey: wsolAta,
-                    lamports: Number(amountLamports.toString()),
+                    // Convert to BigInt ONLY after multiplying and flooring
+                    lamports: BigInt(lamportsAsInteger), 
                 })
             );
 
