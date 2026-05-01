@@ -1,7 +1,7 @@
 import { useProgram } from "../lib/program";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { getTraderAccountPDA, getTraderVaultPDA } from "../lib/pdas";
-import { WSOL_MINT, USDC_MINT, PYTH_SOL_USD, PLATFORM_CONFIG_PDA, PLATFORM_BANK_SOL, PLATFORM_BANK_USDC } from "../lib/constants";
+import { WSOL_MINT, USDC_MINT, PLATFORM_CONFIG_PDA, PLATFORM_BANK_SOL, PLATFORM_BANK_USDC } from "../lib/constants";
 import { PublicKey } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { getATA } from "../lib/ata";
@@ -21,7 +21,7 @@ export function useSignalSwap() {
         const vaultUsdcAta = getATA(USDC_MINT, traderVault, true);
 
         let amountIn = new anchor.BN(0);
-        
+
         try {
             if (targetAsset === "Usdc") {
                 const solBalance = await program.provider.connection.getTokenAccountBalance(vaultSolAta);
@@ -64,8 +64,13 @@ export function useSignalSwap() {
                 .rpc();
 
             return tx;
-        } catch (err) {
-            console.error("Swap failed", err);
+        } catch (err: any) {
+            console.error("Swap Error Details:", err);
+            const logs = err.logs || (err.getLogs ? err.getLogs() : null);
+            if (logs) {
+                console.error("Transaction Logs:", logs);
+                throw new Error(`Simulation failed: ${err.message}. Logs: ${logs.join('\n')}`);
+            }
             throw err;
         }
     };

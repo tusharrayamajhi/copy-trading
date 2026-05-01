@@ -4,7 +4,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { getTraderAccountPDA, getTraderVaultPDA, getInvestorAccountPDA } from "../lib/pdas";
 import { getATA } from "../lib/ata";
 import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
-import { WSOL_MINT, USDC_MINT, PYTH_SOL_USD } from "../lib/constants";
+import { WSOL_MINT } from "../lib/constants";
 import * as anchor from "@coral-xyz/anchor";
 import BN from "bn.js";
 
@@ -31,24 +31,35 @@ export function useDeposit() {
         const priceValue = await getSolPrice();
         const priceBN = new anchor.BN(Math.floor(priceValue * 1e6));
 
-        const tx = await program.methods
-            .depositFunds(new BN(amountLamports.toString()), priceBN)
-            .accounts({
-                investor: publicKey,
-                investorAccount,
-                traderAccount,
-                traderVault,
-                investorSolAta,
-                investorSharesAta,
-                traderVaultTokenSol: vaultSolAta,
-                traderVaultSharesMint: sharesMint,
-                tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
-                associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
-                systemProgram: SystemProgram.programId,
-                rent: SYSVAR_RENT_PUBKEY,
-            } as any)
-            .rpc();
+        try {
+            const tx = await program.methods
+                .depositFunds(new BN(amountLamports.toString()), priceBN)
+                .accounts({
+                    investor: publicKey,
+                    investorAccount,
+                    traderAccount,
+                    traderVault,
+                    investorSolAta,
+                    investorSharesAta,
+                    traderVaultTokenSol: vaultSolAta,
+                    traderVaultSharesMint: sharesMint,
+                    tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+                    associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
+                    systemProgram: SystemProgram.programId,
+                    rent: SYSVAR_RENT_PUBKEY,
+                } as any)
+                .rpc();
 
-        return tx;
+            return tx;
+        } catch (err: any) {
+            console.error("Deposit Error Details:", err);
+            // Catch and log specific Solana logs
+            const logs = err.logs || (err.getLogs ? err.getLogs() : null);
+            if (logs) {
+                console.error("Transaction Logs:", logs);
+                throw new Error(`Simulation failed: ${err.message}. Logs: ${logs.join('\n')}`);
+            }
+            throw err;
+        }
     };
 }

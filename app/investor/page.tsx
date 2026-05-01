@@ -108,10 +108,8 @@ export default function InvestorDashboard() {
     try {
       setSubmitting(true);
       toast.loading("Closing investment...", { id: "withdraw" });
-      const price = Number(manualPrice);
-      if (isNaN(price) || price <= 0) throw new Error("Please enter a valid price");
 
-      await withdraw(new PublicKey(traderPubkey), price);
+      await withdraw(new PublicKey(traderPubkey));
       toast.success("Withdrawal successful! Initial + Profit returned.", { id: "withdraw" });
       refetchInvestments();
       refetchTraders();
@@ -134,7 +132,13 @@ export default function InvestorDashboard() {
     );
   }
 
-  const filteredTraders = traders.filter(t => t.publicKey.toLowerCase().includes(search.toLowerCase()) || t.account.traderWallet.toBase58().toLowerCase().includes(search.toLowerCase()));
+  const filteredTraders = traders
+    .filter(t => t.publicKey.toLowerCase().includes(search.toLowerCase()) || t.account.traderWallet.toBase58().toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => {
+        const profitA = a.account.lifetimeProfitUsd.toNumber() - a.account.lifetimeLossUsd.toNumber();
+        const profitB = b.account.lifetimeProfitUsd.toNumber() - b.account.lifetimeLossUsd.toNumber();
+        return profitB - profitA;
+    });
 
   return (
     <div className="container mx-auto px-6 py-12">
@@ -184,6 +188,9 @@ export default function InvestorDashboard() {
               const linkedTrader = traders.find(t => t.publicKey === inv.linkedTraderPubkey);
               const initialUsd = inv.account.initialDepositUsdValue?.toNumber() / 10 ** 6 || 0;
               const currentAsset = Object.keys(linkedTrader?.account?.currentAsset || {})[0]?.toLowerCase() === "usdc" ? "USDC" : "SOL";
+              const traderProfit = linkedTrader 
+                ? (linkedTrader.account.lifetimeProfitUsd.toNumber() - linkedTrader.account.lifetimeLossUsd.toNumber()) / 1e6 
+                : 0;
 
               return (
                 <div key={inv.publicKey} className="group bg-slate-900 border border-slate-800 rounded-3xl p-6 hover:border-cyan-500/30 transition-all shadow-xl">
@@ -208,8 +215,10 @@ export default function InvestorDashboard() {
                       <p className="font-bold text-slate-200">${initialUsd.toFixed(2)}</p>
                     </div>
                     <div className="p-3 bg-slate-950 rounded-xl border border-slate-800">
-                      <p className="text-[10px] text-slate-500 uppercase font-bold mb-1">Shares Count</p>
-                      <p className="font-bold text-cyan-400">Equity Position</p>
+                      <p className="text-[10px] text-slate-500 uppercase font-bold mb-1">Trader Net Profit</p>
+                      <p className={`font-bold ${traderProfit >= 0 ? "text-green-400" : "text-red-400"}`}>
+                        {traderProfit >= 0 ? "+" : ""}${traderProfit.toFixed(2)}
+                      </p>
                     </div>
                   </div>
 
@@ -240,12 +249,12 @@ export default function InvestorDashboard() {
           </h2>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Market Price</span>
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Live Oracle Price</span>
               <input
-                type="number"
-                value={manualPrice}
-                onChange={(e) => setManualPrice(e.target.value)}
-                className="bg-transparent border-none text-cyan-400 font-bold w-20 focus:outline-none text-sm"
+                type="text"
+                value={`$${manualPrice || "..."}`}
+                readOnly
+                className="bg-transparent border-none text-cyan-400 font-bold w-20 focus:outline-none text-sm cursor-not-allowed"
               />
             </div>
             <div className="relative w-full md:w-96">
@@ -271,17 +280,25 @@ export default function InvestorDashboard() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredTraders.map((trader) => {
+            {filteredTraders.map((trader, index) => {
               const commission = trader.account.commissionPercentage / 100;
               const profit = (trader.account.lifetimeProfitUsd.toNumber() - trader.account.lifetimeLossUsd.toNumber()) / 10 ** 6;
               const currentAsset = Object.keys(trader.account.currentAsset || {})[0]?.toLowerCase() === "usdc" ? "USDC" : "SOL";
 
               return (
-                <div key={trader.publicKey} className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden hover:border-slate-600 transition-all group flex flex-col h-full shadow-2xl">
+                <div key={trader.publicKey} className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden hover:border-slate-600 transition-all group flex flex-col h-full shadow-2xl relative">
+                  {index < 3 && (
+                     <div className="absolute top-0 right-8 bg-amber-500/10 text-amber-500 px-3 py-1 rounded-b-xl text-[10px] font-bold uppercase tracking-widest border border-t-0 border-amber-500/20">
+                         Top Trader
+                     </div>
+                  )}
                   <div className="p-8 flex-1">
                     <div className="flex justify-between items-start mb-6">
-                      <div className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20 group-hover:scale-110 transition-transform">
+                      <div className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20 group-hover:scale-110 transition-transform relative">
                         <Users className="text-white w-7 h-7" />
+                        <div className="absolute -top-2 -right-2 w-6 h-6 bg-slate-800 text-cyan-400 rounded-full flex items-center justify-center text-xs font-black border border-cyan-500/30 shadow-md">
+                          #{index + 1}
+                        </div>
                       </div>
                       <div className="text-right">
                         <p className={`text-lg font-black ${profit >= 0 ? "text-green-400" : "text-red-400"}`}>

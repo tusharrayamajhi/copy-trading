@@ -108,11 +108,8 @@ export default function TraderDashboard() {
   const handleSwap = async (asset: "Sol" | "Usdc") => {
     try {
       setSubmitting(true);
-      const price = Number(manualPrice);
-      if (isNaN(price) || price <= 0) throw new Error("Invalid price. Please enter a price manually.");
-      
-      const tx = await signalSwap(asset, price);
-      toast.success(`Strategy shifted to ${asset} at $${price.toFixed(2)}!`);
+      const tx = await signalSwap(asset);
+      toast.success(`Strategy shifted to ${asset} at Live Market Price!`);
       refetch();
     } catch (err: any) {
       console.error("Swap Error:", err);
@@ -207,6 +204,15 @@ export default function TraderDashboard() {
   const loss = traderAccount.lifetimeLossUsd.toNumber() / 10**6;
   const net = profit - loss;
 
+  // Live PnL Calculation
+  const livePrice = Number(manualPrice) || 0;
+  const liveVaultValueUsd = (vaultBalances.sol * livePrice) + vaultBalances.usdc;
+  const initialVaultValueUsd = traderAccount.totalSharesValueUsd.toNumber() / 10**6;
+  
+  // Only show PnL if there is actual liquidity or active deposits
+  const hasActiveInvestment = initialVaultValueUsd > 0.01;
+  const unrealizedPnl = hasActiveInvestment ? (liveVaultValueUsd - initialVaultValueUsd) : 0;
+
   return (
     <div className="container mx-auto px-6 py-12">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6 bg-slate-900/50 border border-slate-800 p-8 rounded-3xl backdrop-blur-xl">
@@ -236,13 +242,12 @@ export default function TraderDashboard() {
               <h2 className="text-xl font-bold flex items-center gap-2"><ArrowLeftRight className="w-5 h-5 text-cyan-400" /> Strategy Management</h2>
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2 px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Manual Price</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Live Oracle Price</span>
                     <input 
-                        type="number" 
-                        value={manualPrice}
-                        onChange={(e) => setManualPrice(e.target.value)}
-                        className="bg-transparent border-none text-cyan-400 font-bold w-20 focus:outline-none text-sm"
-                        placeholder="Loading..."
+                        type="text" 
+                        value={`$${manualPrice || "..."}`}
+                        readOnly
+                        className="bg-transparent border-none text-cyan-400 font-bold w-20 focus:outline-none text-sm cursor-not-allowed"
                     />
                 </div>
                 <div className="px-3 py-1 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 rounded-full text-xs font-bold uppercase tracking-wider">
@@ -297,7 +302,27 @@ export default function TraderDashboard() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
              <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8">
-                <h3 className="text-slate-400 text-sm font-medium mb-1">Lifetime Performance</h3>
+                <h3 className="text-slate-400 text-sm font-medium mb-1 flex items-center gap-2">
+                    Live Unrealized P&L
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                </h3>
+                <div className={`text-3xl font-black mb-4 ${unrealizedPnl >= 0 ? "text-green-400" : "text-red-400"}`}>
+                    {unrealizedPnl >= 0 ? "+" : ""}${unrealizedPnl.toFixed(2)}
+                </div>
+                <div className="flex gap-4">
+                    <div className="flex-1">
+                        <p className="text-xs text-slate-500 uppercase">Current Value</p>
+                        <p className="text-lg font-bold text-white">${liveVaultValueUsd.toFixed(2)}</p>
+                    </div>
+                    <div className="flex-1">
+                        <p className="text-xs text-slate-500 uppercase">Initial Deposits</p>
+                        <p className="text-lg font-bold text-slate-400">${hasActiveInvestment ? initialVaultValueUsd.toFixed(2) : "0.00"}</p>
+                    </div>
+                </div>
+             </div>
+
+             <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8">
+                <h3 className="text-slate-400 text-sm font-medium mb-1">Lifetime Realized Performance</h3>
                 <div className={`text-3xl font-black mb-4 ${net >= 0 ? "text-green-400" : "text-red-400"}`}>
                     {net >= 0 ? "+" : ""}${net.toFixed(2)}
                 </div>
@@ -310,17 +335,6 @@ export default function TraderDashboard() {
                         <p className="text-xs text-slate-500 uppercase">Losses</p>
                         <p className="text-lg font-bold text-red-400/80">${loss.toFixed(2)}</p>
                     </div>
-                </div>
-             </div>
-
-             <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8">
-                <h3 className="text-slate-400 text-sm font-medium mb-1">Vault Utilization</h3>
-                <div className="text-3xl font-black mb-4 text-slate-100">
-                    {traderAccount.totalTrades.toString()} <span className="text-sm font-normal text-slate-500">trades</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-slate-400">
-                    <CheckCircle2 className="w-4 h-4 text-cyan-400" />
-                    Verified On-chain
                 </div>
              </div>
           </div>
