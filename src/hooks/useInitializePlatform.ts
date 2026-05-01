@@ -11,7 +11,7 @@ export function useInitializePlatform() {
         if (!program || !publicKey) throw new Error("Wallet not connected");
 
         const [platformConfig] = PublicKey.findProgramAddressSync(
-            [Buffer.from("platform_config")],
+            [Buffer.from("platform_config_v2")],
             program.programId
         );
 

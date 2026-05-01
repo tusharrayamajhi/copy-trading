@@ -1,7 +1,12 @@
 // src/hooks/useWrapSol.ts
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-import { PublicKey, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
-import { Token, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
+import {
+    TOKEN_PROGRAM_ID,
+    ASSOCIATED_TOKEN_PROGRAM_ID,
+    createAssociatedTokenAccountInstruction,
+    createSyncNativeInstruction
+} from "@solana/spl-token";
 import { WSOL_MINT } from "../lib/constants";
 import { getATA } from "../lib/ata";
 
@@ -14,52 +19,37 @@ export function useWrapSol() {
 
         const wsolAta = getATA(WSOL_MINT, publicKey, false);
         const tx = new Transaction();
-        const LAMPORTS_PER_SOL = 1_000_000_000;
+        const lamports = Math.floor(amount * 1_000_000_000);
 
         try {
-            const latestBlockhash = await connection.getLatestBlockhash();
-            tx.recentBlockhash = latestBlockhash.blockhash;
-            tx.feePayer = publicKey;
-
-            // 1. Check if ATA exists
-            const accountInfo = await connection.getAccountInfo(wsolAta);
-            if (!accountInfo) {
+            // 1. Check if the ATA already exists
+            const info = await connection.getAccountInfo(wsolAta);
+            if (!info) {
+                // Create ATA if it doesn't exist
                 tx.add(
-                    Token.createAssociatedTokenAccountInstruction(
-                        ASSOCIATED_TOKEN_PROGRAM_ID,
-                        TOKEN_PROGRAM_ID,
-                        WSOL_MINT,
+                    createAssociatedTokenAccountInstruction(
+                        publicKey,
                         wsolAta,
                         publicKey,
-                        publicKey
+                        WSOL_MINT
                     )
                 );
             }
 
-            // 2. Transfer Native SOL to the WSOL ATA
-            // Ensure amountLamports is a whole number integer
-            const lamportsAsInteger = Math.floor(parseFloat(amount.toString()) * LAMPORTS_PER_SOL);
-            
+            // 2. Transfer native SOL to the ATA address
             tx.add(
                 SystemProgram.transfer({
                     fromPubkey: publicKey,
                     toPubkey: wsolAta,
-                    // Convert to BigInt ONLY after multiplying and flooring
-                    lamports: BigInt(lamportsAsInteger), 
+                    lamports: lamports,
                 })
             );
 
-            // 3. Sync Native (mints WSOL 1:1 for the deposited native SOL)
-            const data = Buffer.alloc(1);
-            data.writeUInt8(17, 0); // 17 is SyncNative instruction discriminator
-            tx.add(new TransactionInstruction({
-                keys: [{ pubkey: wsolAta, isSigner: false, isWritable: true }],
-                programId: TOKEN_PROGRAM_ID,
-                data,
-            }));
+            // 3. Sync the native SOL to the token account balance (this is the actual "wrap")
+            tx.add(createSyncNativeInstruction(wsolAta));
 
             const signature = await sendTransaction(tx, connection);
-            await connection.confirmTransaction(signature, "confirmed");
+            await connection.confirmTransaction(signature, 'confirmed');
             return signature;
         } catch (error: any) {
             console.error("Wrap SOL Error Details:", error);
@@ -67,34 +57,9 @@ export function useWrapSol() {
                 console.error("Transaction simulation logs:", error.logs);
                 throw new Error("Transaction simulation failed: " + error.logs.join(", "));
             }
-            if (error.message && error.message.includes("Unexpected error")) {
-                throw new Error("Wrapping failed! Make sure you have enough SOL to cover both the amount and network fees. (Try leaving ~0.01 SOL in your wallet)");
-            }
-            throw new Error(error.message || "Failed to wrap SOL.");
+            throw error;
         }
     };
 
-    const unwrap = async () => {
-        if (!publicKey) throw new Error("Wallet not connected");
-        
-        const wsolAta = getATA(WSOL_MINT, publicKey, false);
-        const tx = new Transaction();
-
-        // Close the WSOL account, which sends the underlying SOL back to the owner
-        tx.add(
-            Token.createCloseAccountInstruction(
-                TOKEN_PROGRAM_ID,
-                wsolAta,
-                publicKey,
-                publicKey,
-                []
-            )
-        );
-
-        const signature = await sendTransaction(tx, connection);
-        await connection.confirmTransaction(signature, "confirmed");
-        return signature;
-    };
-
-    return { wrap, unwrap };
+    return { wrap };
 }

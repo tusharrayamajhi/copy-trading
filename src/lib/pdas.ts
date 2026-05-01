@@ -3,7 +3,10 @@ import { PublicKey } from "@solana/web3.js";
 import { PROGRAM_ID } from "./constants";
 
 export function getPlatformConfigPDA() {
-    return PublicKey.findProgramAddressSync([Buffer.from("platform_config")], PROGRAM_ID);
+    return PublicKey.findProgramAddressSync(
+        [Buffer.from("platform_config_v2")],
+        PROGRAM_ID
+    );
 }
 
 export function getTraderAccountPDA(traderWallet: PublicKey) {

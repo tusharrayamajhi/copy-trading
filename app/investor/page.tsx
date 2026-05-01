@@ -16,6 +16,7 @@ export default function InvestorDashboard() {
   const { connection } = useConnection();
   const { publicKey } = useWallet();
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [wsolBalance, setWsolBalance] = useState<number | null>(null);
   const { traders, loading: loadingTraders, refetch: refetchTraders } = useAllTraders();
   const { investments, loading: loadingInvestments, refetch: refetchInvestments } = useMyInvestments(publicKey, traders);
   const deposit = useDeposit();
@@ -29,14 +30,14 @@ export default function InvestorDashboard() {
 
   useEffect(() => {
     const fetchPrice = async () => {
-        try {
-            const { getSolPrice } = await import("../../src/lib/price");
-            const price = await getSolPrice();
-            setManualPrice(price.toFixed(2));
-        } catch (e) {
-            console.error("Price fetch failed in dashboard");
-            setManualPrice("145.00"); // Force a default if everything crashes
-        }
+      try {
+        const { getSolPrice } = await import("../../src/lib/price");
+        const price = await getSolPrice();
+        setManualPrice(price.toFixed(2));
+      } catch (e) {
+        console.error("Price fetch failed in dashboard");
+        setManualPrice("145.00"); // Force a default if everything crashes
+      }
     };
     fetchPrice();
     const interval = setInterval(fetchPrice, 10000); // 10s
@@ -46,8 +47,23 @@ export default function InvestorDashboard() {
   useEffect(() => {
     if (!publicKey || !connection) return;
     const fetchBalance = async () => {
+      try {
         const bal = await connection.getBalance(publicKey);
         setWalletBalance(bal / 1e9);
+
+        // Fetch WSOL Balance
+        const { getAssociatedTokenAddressSync } = await import("@solana/spl-token");
+        const { WSOL_MINT } = await import("../../src/lib/constants");
+        const ata = getAssociatedTokenAddressSync(WSOL_MINT, publicKey);
+        try {
+          const tokenBal = await connection.getTokenAccountBalance(ata);
+          setWsolBalance(Number(tokenBal.value.amount) / 1e9);
+        } catch (e) {
+          setWsolBalance(0); // ATA probably doesn't exist
+        }
+      } catch (e) {
+        console.error("Failed to fetch balances");
+      }
     };
     fetchBalance();
     const interval = setInterval(fetchBalance, 10000);
@@ -57,18 +73,27 @@ export default function InvestorDashboard() {
   const handleDeposit = async (traderWallet: string) => {
     try {
       setSubmitting(true);
-      const lamports = BigInt(Math.floor(Number(amount) * 1e9));
-      
-      // Auto-wrap SOL before deposit
-      toast.loading("Wrapping SOL...", { id: "deposit" });
-      await wrap(Number(amount));
-      
+      const requestedAmount = Number(amount);
+      const lamports = BigInt(Math.floor(requestedAmount * 1e9));
+
+      // Check if we need to wrap more SOL
+      const currentWsol = wsolBalance || 0;
+      if (currentWsol < requestedAmount) {
+        const needed = requestedAmount - currentWsol;
+        toast.loading(`Wrapping ${needed.toFixed(3)} SOL...`, { id: "deposit" });
+        await wrap(needed);
+        // Wait a bit for the wrap to confirm on-chain before depositing
+        await new Promise(r => setTimeout(r, 2000));
+      } else {
+        toast.loading("Using existing Wrapped SOL...", { id: "deposit" });
+      }
+
       toast.loading("Depositing to Vault...", { id: "deposit" });
       const price = Number(manualPrice);
       if (isNaN(price) || price <= 0) throw new Error("Please enter a valid price");
 
-      await deposit(new PublicKey(traderWallet), lamports, price);
-      
+      await deposit(new PublicKey(traderWallet), lamports);
+
       toast.success("Deposit successful!", { id: "deposit" });
       refetchInvestments();
       refetchTraders();
@@ -115,17 +140,27 @@ export default function InvestorDashboard() {
     <div className="container mx-auto px-6 py-12">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6 bg-slate-900/50 border border-slate-800 p-8 rounded-3xl backdrop-blur-xl">
         <div>
-            <h1 className="text-4xl font-black mb-2 bg-gradient-to-r from-white to-slate-500 bg-clip-text text-transparent italic tracking-tighter">INVESTOR DASHBOARD</h1>
-            <p className="text-slate-400 font-mono text-sm">{publicKey.toBase58()}</p>
+          <h1 className="text-4xl font-black mb-2 bg-gradient-to-r from-white to-slate-500 bg-clip-text text-transparent italic tracking-tighter">INVESTOR DASHBOARD</h1>
+          <p className="text-slate-400 font-mono text-sm">{publicKey.toBase58()}</p>
         </div>
         <div className="flex gap-4">
-            <div className="bg-slate-950 border border-slate-800 px-6 py-3 rounded-2xl">
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Wallet Balance</p>
-                <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                    <p className="text-xl font-black text-white">{walletBalance?.toFixed(3) || "0.000"} <span className="text-slate-500 text-sm italic">SOL</span></p>
-                </div>
+          <div className="bg-slate-950 border border-slate-800 px-6 py-3 rounded-2xl flex items-center gap-6">
+            <div>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Native SOL</p>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                <p className="text-xl font-black text-white">{walletBalance?.toFixed(3) || "0.000"}</p>
+              </div>
             </div>
+            <div className="w-px h-8 bg-slate-800" />
+            <div>
+              <p className="text-[10px] font-bold text-cyan-500 uppercase tracking-widest mb-1">Wrapped SOL</p>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-cyan-500 rounded-full" />
+                <p className="text-xl font-black text-cyan-400">{wsolBalance?.toFixed(3) || "0.000"}</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       {/* My Portfolio Section */}
@@ -133,7 +168,7 @@ export default function InvestorDashboard() {
         <h2 className="text-3xl font-bold mb-8 flex items-center gap-3">
           <Activity className="text-cyan-400 w-8 h-8" /> Active Investments
         </h2>
-        
+
         {loadingInvestments ? (
           <div className="h-40 flex items-center justify-center bg-slate-900/30 border border-slate-800/50 rounded-3xl animate-pulse">
             <p className="text-slate-500">Loading your portfolio...</p>
@@ -147,7 +182,7 @@ export default function InvestorDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {investments.map((inv) => {
               const linkedTrader = traders.find(t => t.publicKey === inv.linkedTraderPubkey);
-              const initialUsd = inv.account.initialDepositUsdValue?.toNumber() / 10**6 || 0;
+              const initialUsd = inv.account.initialDepositUsdValue?.toNumber() / 10 ** 6 || 0;
               const currentAsset = Object.keys(linkedTrader?.account?.currentAsset || {})[0]?.toLowerCase() === "usdc" ? "USDC" : "SOL";
 
               return (
@@ -161,7 +196,7 @@ export default function InvestorDashboard() {
                       <span className="px-2 py-1 bg-cyan-500/10 text-cyan-400 rounded-md text-xs font-bold border border-cyan-500/20">{currentAsset}</span>
                     </div>
                   </div>
-                  
+
                   <div className="mb-6">
                     <p className="text-xs text-slate-500 mb-1 font-mono truncate">{inv.linkedTraderPubkey}</p>
                     <h3 className="text-lg font-bold">Signal Vault</h3>
@@ -178,7 +213,7 @@ export default function InvestorDashboard() {
                     </div>
                   </div>
 
-                  <button 
+                  <button
                     onClick={() => handleWithdraw(inv.linkedTraderPubkey)}
                     disabled={submitting}
                     className="w-full py-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 font-bold rounded-xl border border-red-500/30 transition-all text-sm flex items-center justify-center gap-2"
@@ -194,7 +229,7 @@ export default function InvestorDashboard() {
 
       {/* Platform Liquidity Info */}
       <div className="mb-16 max-w-lg">
-          <BankStatus />
+        <BankStatus />
       </div>
 
       {/* Explore Section */}
@@ -205,23 +240,23 @@ export default function InvestorDashboard() {
           </h2>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Market Price</span>
-                <input 
-                    type="number" 
-                    value={manualPrice}
-                    onChange={(e) => setManualPrice(e.target.value)}
-                    className="bg-transparent border-none text-cyan-400 font-bold w-20 focus:outline-none text-sm"
-                />
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Market Price</span>
+              <input
+                type="number"
+                value={manualPrice}
+                onChange={(e) => setManualPrice(e.target.value)}
+                className="bg-transparent border-none text-cyan-400 font-bold w-20 focus:outline-none text-sm"
+              />
             </div>
             <div className="relative w-full md:w-96">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
-                <input 
-                type="text" 
-                placeholder="Search by address..." 
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
+              <input
+                type="text"
+                placeholder="Search by address..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full bg-slate-900 border border-slate-800 rounded-2xl pl-12 pr-4 py-4 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all shadow-inner"
-                />
+              />
             </div>
           </div>
         </div>
@@ -231,14 +266,14 @@ export default function InvestorDashboard() {
             {[1, 2, 3].map(i => <div key={i} className="h-64 bg-slate-900 animate-pulse rounded-3xl border border-slate-800" />)}
           </div>
         ) : filteredTraders.length === 0 ? (
-           <div className="p-20 text-center bg-slate-900/30 rounded-3xl border border-slate-800">
-              <p className="text-slate-500">No active traders found matching your criteria.</p>
-           </div>
+          <div className="p-20 text-center bg-slate-900/30 rounded-3xl border border-slate-800">
+            <p className="text-slate-500">No active traders found matching your criteria.</p>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredTraders.map((trader) => {
               const commission = trader.account.commissionPercentage / 100;
-              const profit = (trader.account.lifetimeProfitUsd.toNumber() - trader.account.lifetimeLossUsd.toNumber()) / 10**6;
+              const profit = (trader.account.lifetimeProfitUsd.toNumber() - trader.account.lifetimeLossUsd.toNumber()) / 10 ** 6;
               const currentAsset = Object.keys(trader.account.currentAsset || {})[0]?.toLowerCase() === "usdc" ? "USDC" : "SOL";
 
               return (
@@ -281,8 +316,8 @@ export default function InvestorDashboard() {
                     <div className="flex gap-4 mb-4">
                       <div className="flex-1 relative">
                         <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
-                        <input 
-                          type="number" 
+                        <input
+                          type="number"
                           placeholder="SOL"
                           className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                           value={amount}
@@ -290,7 +325,7 @@ export default function InvestorDashboard() {
                         />
                       </div>
                     </div>
-                    <button 
+                    <button
                       onClick={() => handleDeposit(trader.account.traderWallet.toBase58())}
                       disabled={submitting}
                       className="w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-xl shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/40 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
@@ -308,24 +343,24 @@ export default function InvestorDashboard() {
 
       {/* Info Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-24">
-          <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8 flex gap-6">
-              <div className="w-14 h-14 bg-cyan-500/10 rounded-2xl flex items-center justify-center shrink-0">
-                  <Shield className="text-cyan-400 w-8 h-8" />
-              </div>
-              <div>
-                  <h4 className="text-xl font-bold mb-2">Vault Security</h4>
-                  <p className="text-slate-400 text-sm leading-relaxed">Funds are stored in Program Derived Addresses (PDAs). Only you can withdraw your principal and profits by burning your unique Vault Shares.</p>
-              </div>
+        <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8 flex gap-6">
+          <div className="w-14 h-14 bg-cyan-500/10 rounded-2xl flex items-center justify-center shrink-0">
+            <Shield className="text-cyan-400 w-8 h-8" />
           </div>
-          <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8 flex gap-6">
-              <div className="w-14 h-14 bg-blue-500/10 rounded-2xl flex items-center justify-center shrink-0">
-                  <Vault className="text-blue-400 w-8 h-8" />
-              </div>
-              <div>
-                  <h4 className="text-xl font-bold mb-2">Liquidity Pools</h4>
-                  <p className="text-slate-400 text-sm leading-relaxed">Your capital joins the trader's vault and is swapped between WSOL and USDC in the platform bank as the trader signals strategy changes.</p>
-              </div>
+          <div>
+            <h4 className="text-xl font-bold mb-2">Vault Security</h4>
+            <p className="text-slate-400 text-sm leading-relaxed">Funds are stored in Program Derived Addresses (PDAs). Only you can withdraw your principal and profits by burning your unique Vault Shares.</p>
           </div>
+        </div>
+        <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8 flex gap-6">
+          <div className="w-14 h-14 bg-blue-500/10 rounded-2xl flex items-center justify-center shrink-0">
+            <Vault className="text-blue-400 w-8 h-8" />
+          </div>
+          <div>
+            <h4 className="text-xl font-bold mb-2">Liquidity Pools</h4>
+            <p className="text-slate-400 text-sm leading-relaxed">Your capital joins the trader's vault and is swapped between WSOL and USDC in the platform bank as the trader signals strategy changes.</p>
+          </div>
+        </div>
       </div>
     </div>
   );

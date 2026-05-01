@@ -1,0 +1,126 @@
+Viewed lib.rs:283-304
+
+Once you have initialized the **v2** bank accounts and updated your `constants.ts`, you need to "Fill the Tank" so traders can swap.
+
+### How to Fund the Bank (Adding Liquidity):
+
+The Bank accounts are **Token Accounts**, so you must send SPL Tokens to them.
+
+#### 1. Funding with USDC
+1.  **Copy the USDC Bank Address**: Get the `PLATFORM_BANK_USDC` address from your dashboard or script.
+2.  **Send from Wallet**: Open your Phantom/Solflare wallet and send your **20 USDC** directly to that bank address.
+
+#### 2. Funding with SOL (MUST be Wrapped SOL)
+This is the most important part: Because the Bank is a Token Account, it **cannot** accept Native SOL. It only accepts **Wrapped SOL (WSOL)**.
+1.  **Wrap your SOL**: Go to the **Investor Dashboard** on your website and use the "Native SOL" section to wrap some SOL (e.g., 1 SOL).
+2.  **Copy the SOL Bank Address**: Get the `PLATFORM_BANK_SOL` address.
+3.  **Send WSOL**: In your wallet, find your "Wrapped SOL" and send it to that bank address.
+
+### Why is this necessary?
+The platform acts like a mini-DEX. When a trader wants to swap USDC for SOL:
+*   They send USDC to the **USDC Bank**.
+*   The **SOL Bank** sends WSOL back to the trader.
+If the SOL Bank is empty (0.00), the swap will fail with a **"Vault is empty"** error.
+
+**Once you send those tokens, the "Platform Liquidity" card on your website will update, and your traders can start swapping!**
+
+
+
+
+
+
+
+
+To fund the bank with the **specific tokens** (`USDC` and `WSOL`) required by your program, you can use this **Liquidity Injector Script** in Solana Playground.
+
+This script does two things:
+1.  **Wraps SOL** from your wallet into WSOL and sends it to the Bank.
+2.  **Mints/Transfers USDC** (the `Gh9Zw...` token) to the Bank.
+
+### Run this in Solana Playground:
+
+```typescript
+import * as anchor from "@coral-xyz/anchor";
+import { 
+  getAssociatedTokenAddressSync, 
+  createSyncNativeInstruction,
+  createTransferInstruction,
+  getOrCreateAssociatedTokenAccount
+} from "@solana/spl-token";
+
+async function main() {
+  const connection = pg.connection;
+  const wallet = pg.wallet;
+
+  // 1. Bank Addresses (Update these from your constants.ts)
+  const PLATFORM_BANK_SOL = new anchor.web3.PublicKey("YOUR_NEW_V2_SOL_BANK_HERE");
+  const PLATFORM_BANK_USDC = new anchor.web3.PublicKey("YOUR_NEW_V2_USDC_BANK_HERE");
+
+  // 2. Mints
+  const WSOL_MINT = new anchor.web3.PublicKey("So111111111111111111111111111111
+
+[ignoring loop detection]
+Since you are using a **custom USDC mint** (`Gh9Zw...`) and the SOL bank requires **Wrapped SOL**, you can use this script in **Solana Playground** to fund the bank directly from your wallet.
+
+### Funding Script (Run in Playground):
+
+```typescript
+import * as anchor from "@coral-xyz/anchor";
+import { 
+  getAssociatedTokenAddressSync, 
+  createSyncNativeInstruction,
+  createTransferInstruction,
+  getOrCreateAssociatedTokenAccount
+} from "@solana/spl-token";
+
+async function main() {
+  const connection = pg.connection;
+  const wallet = pg.wallet;
+
+  // 1. BANK ADDRESSES (Copy these from your constants.ts)
+  const BANK_SOL = new anchor.web3.PublicKey("YOUR_V2_SOL_BANK_ADDRESS");
+  const BANK_USDC = new anchor.web3.PublicKey("YOUR_V2_USDC_BANK_ADDRESS");
+
+  // 2. MINTS
+  const WSOL_MINT = new anchor.web3.PublicKey("So11111111111111111111111111111111111111112");
+  const USDC_MINT = new anchor.web3.PublicKey("Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr");
+
+  const tx = new anchor.web3.Transaction();
+
+  // --- PART A: Send 1.0 Wrapped SOL to Bank ---
+  console.log("Preparing 1.0 SOL Liquidity...");
+  const userWsolAta = getAssociatedTokenAddressSync(WSOL_MINT, wallet.publicKey);
+  
+  // Transfer 1 SOL to your WSOL ATA and sync
+  tx.add(anchor.web3.SystemProgram.transfer({
+    fromPubkey: wallet.publicKey,
+    toPubkey: userWsolAta,
+    lamports: 1 * anchor.web3.LAMPORTS_PER_SOL,
+  }));
+  tx.add(createSyncNativeInstruction(userWsolAta));
+
+  // Send the WSOL to the SOL Bank
+  tx.add(createTransferInstruction(userWsolAta, BANK_SOL, wallet.publicKey, 1 * anchor.web3.LAMPORTS_PER_SOL));
+
+  // --- PART B: Send USDC to Bank ---
+  console.log("Preparing USDC Liquidity...");
+  const userUsdcAta = getAssociatedTokenAddressSync(USDC_MINT, wallet.publicKey);
+  
+  // Send 50 USDC (assuming you have it in your wallet)
+  // USDC in Playground usually has 6 decimals
+  tx.add(createTransferInstruction(userUsdcAta, BANK_USDC, wallet.publicKey, 50 * 1000000));
+
+  console.log("Sending liquidity to Bank...");
+  const sig = await pg.program.provider.sendAndConfirm(tx);
+  console.log("✅ Liquidity added! Signature:", sig);
+}
+
+main();
+```
+
+### Tips for Faucets:
+1.  **For SOL**: Use any standard Devnet faucet (like `solana airdrop 2`) to get native SOL.
+2.  **For USDC**: If you are using the Playground USDC (`Gh9Zw...`), you can mint more tokens to yourself in the Playground **"Mints"** tab (click the `+` icon next to the mint).
+3.  **For WSOL**: The script above handles "Wrapping" the SOL for you by converting your native SOL into tokens before sending.
+
+Once you run this, your **Navbar** and **Bank Status** will finally show the liquidity!

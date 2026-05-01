@@ -15,22 +15,22 @@ export default function Navbar() {
     setMounted(true);
     const fetchBankBalances = async () => {
         try {
-            // 1. Fetch WSOL balance (Token Account)
+            // 1. Fetch SOL balance (Native SOL is easier for testing)
             let solAmount = 0;
             try {
-                const solTokenBal = await connection.getTokenAccountBalance(PLATFORM_BANK_SOL);
-                solAmount = Number(solTokenBal.value.amount) / 1e9; // WSOL uses 9 decimals
+                const nativeSolBal = await connection.getBalance(PLATFORM_BANK_SOL);
+                solAmount = nativeSolBal / 1e9;
             } catch (e) {
-                console.warn("SOL Bank (WSOL) not initialized");
+                console.warn("Could not fetch Native SOL balance");
             }
             
             // 2. Fetch USDC balance (Token Account)
             let usdcAmount = 0;
             try {
                 const usdcBal = await connection.getTokenAccountBalance(PLATFORM_BANK_USDC);
-                usdcAmount = Number(usdcBal.value.amount) / 1e6; // USDC uses 6 decimals
+                usdcAmount = Number(usdcBal.value.amount) / 1e6;
             } catch (e) {
-                console.warn("USDC Bank not initialized");
+                console.warn("USDC Bank (Token Account) not initialized yet");
             }
 
             setBankBalances({
@@ -38,7 +38,7 @@ export default function Navbar() {
                 usdc: usdcAmount
             });
         } catch (e) {
-            console.error("Failed to fetch bank balances:", e);
+            console.error("Critical error fetching bank balances:", e);
         }
     };
     fetchBankBalances();

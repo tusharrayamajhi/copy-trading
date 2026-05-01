@@ -1,13 +1,4 @@
-
-Running client...
-  client.ts:
-    --- PROJECT STATUS ---
-    Program ID: AGNFafmkeBehcYJvKBzG1VYRzXEbfHeLYmKP7atSGB57
-    Config PDA: mcov9MZ84aaiVZhiZCS7kJzd4zCL7y3oCkwFWzbtLGL
-    Wait... still connecting to devnet...
-    
---- BANK ADDRESSES (FUND THESE ON DEVNET) ---
-    WSOL BANK: 4dgh4vRX1VDUgSpGFdM4W5s8DXNmUy5YwdUhD2HHFKEg
-    USDC BANK: ygmA9QQzTNkTy1h7vDj4A83cMh792DXKJ2dxU44newr
-    
-Copy these addresses and send them Devnet tokens to start trading!
+client.ts:
+    NEW PLATFORM_CONFIG_PDA (v2): 6YPa4Pe1dWuY4JbnUpc1YAKtQw62aPfq9XnyoV9CGjyJ
+    NEW PLATFORM_BANK_SOL: 7srYNsuaz1GDzm4RsrkqRd8AbqVh288Kr8u4EjDxbthz
+    NEW PLATFORM_BANK_USDC: J3oCbBq5ddTVnxB4UT73sL949jVQ8y6TaUECmDyPvsXh

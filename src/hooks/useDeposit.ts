@@ -12,7 +12,7 @@ export function useDeposit() {
     const program = useProgram();
     const { publicKey } = useWallet();
 
-    return async (traderWallet: PublicKey, amountLamports: bigint, priceOverride?: number) => {
+    return async (traderWallet: PublicKey, amountLamports: bigint) => {
         if (!program || !publicKey) throw new Error("Wallet not connected");
 
         const [traderAccount] = getTraderAccountPDA(traderWallet);
@@ -27,11 +27,8 @@ export function useDeposit() {
         const investorSharesAta = getATA(sharesMint, publicKey);
         const vaultSolAta = getATA(WSOL_MINT, traderVault, true);
 
-        let priceValue = priceOverride;
-        if (!priceValue) {
-            const { getSolPrice } = await import("../lib/price");
-            priceValue = await getSolPrice();
-        }
+        const { getSolPrice } = await import("../lib/price");
+        const priceValue = await getSolPrice();
         const priceBN = new anchor.BN(Math.floor(priceValue * 1e6));
 
         const tx = await program.methods
@@ -41,7 +38,7 @@ export function useDeposit() {
                 investorAccount,
                 traderAccount,
                 traderVault,
-                investorSolAta, 
+                investorSolAta,
                 investorSharesAta,
                 traderVaultTokenSol: vaultSolAta,
                 traderVaultSharesMint: sharesMint,

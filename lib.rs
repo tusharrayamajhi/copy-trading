@@ -7,9 +7,6 @@ use std::str::FromStr;
 
 declare_id!("AGNFafmkeBehcYJvKBzG1VYRzXEbfHeLYmKP7atSGB57");
 
-// ─────────────────────────────────────────────
-//  HARDCODED DEFAULTS
-// ─────────────────────────────────────────────
 const ADMIN_WALLET: &str = "AT5cVfYLu9oBa1xu5FNPw6eQuiNZ99Jj1vjxcjRmpePH";
 const WSOL_MINT: &str = "So11111111111111111111111111111111111111112";
 const USDC_MINT: &str = "Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr";
@@ -18,7 +15,6 @@ const USDC_MINT: &str = "Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr";
 pub mod defi_copy_trade {
     use super::*;
 
-    /// Initialize the platform settings and the fee recipient.
     pub fn initialize_platform(
         ctx: Context<InitializePlatform>,
         platform_fee_percentage: u16,
@@ -38,7 +34,6 @@ pub mod defi_copy_trade {
         Ok(())
     }
 
-    /// Create a new Trader profile and initialize their Vault.
     pub fn create_trader(ctx: Context<CreateTrader>, commission_percentage: u16) -> Result<()> {
         require!(commission_percentage <= 10000, ErrorCode::InvalidCommission);
 
@@ -53,7 +48,6 @@ pub mod defi_copy_trade {
         trader_account.bump = ctx.bumps.trader_account;
         trader_account.vault_bump = ctx.bumps.trader_vault;
 
-        // Save vault account keys for frontend convenience
         trader_account.trader_vault_token_sol = ctx.accounts.trader_vault_token_sol.key();
         trader_account.trader_vault_token_usdc = ctx.accounts.trader_vault_token_usdc.key();
         trader_account.trader_vault_shares_mint = ctx.accounts.trader_vault_shares_mint.key();
@@ -61,14 +55,10 @@ pub mod defi_copy_trade {
         Ok(())
     }
 
-    /// Investor deposits SOL. Price is passed from the frontend chart.
     pub fn deposit_funds(ctx: Context<DepositFunds>, amount: u64, price: u64) -> Result<()> {
         require!(amount > 0, ErrorCode::AmountZero);
-
-        // Calculate USD value (amount is lamports 1e9, price has 6 decimals)
         let deposit_usd_value = (amount as u128 * price as u128 / 1_000_000_000) as u64;
 
-        // 1. Transfer WSOL from Investor to Vault
         token::transfer(
             CpiContext::new(
                 ctx.accounts.token_program.to_account_info(),
@@ -81,7 +71,6 @@ pub mod defi_copy_trade {
             amount,
         )?;
 
-        // 2. Calculate Shares to Mint
         let trader_account = &mut ctx.accounts.trader_account;
         let shares_to_mint = if trader_account.total_shares_value_usd == 0 {
             deposit_usd_value
@@ -91,7 +80,6 @@ pub mod defi_copy_trade {
                 / trader_account.total_shares_value_usd as u128) as u64
         };
 
-        // 3. Mint Shares to Investor
         let vault_seeds: &[&[u8]] = &[
             trader_account.trader_wallet.as_ref(),
             b"trader_vault",
@@ -111,14 +99,12 @@ pub mod defi_copy_trade {
             shares_to_mint,
         )?;
 
-        // 4. Update State
         ctx.accounts.investor_account.initial_deposit_usd_value = deposit_usd_value;
         trader_account.total_shares_value_usd += deposit_usd_value;
 
         Ok(())
     }
 
-    /// Trader swaps tokens between Vault and Platform Bank. Price from chart.
     pub fn signal_swap(
         ctx: Context<SignalSwap>,
         target_asset: AssetType,
@@ -126,20 +112,16 @@ pub mod defi_copy_trade {
         price: u64,
     ) -> Result<()> {
         let trader_account = &mut ctx.accounts.trader_account;
-
         let vault_seeds: &[&[u8]] = &[
             trader_account.trader_wallet.as_ref(),
             b"trader_vault",
             &[trader_account.vault_bump],
         ];
-
-        let config_seeds: &[&[u8]] = &[b"platform_config", &[ctx.accounts.platform_config.bump]];
+        // ✅ FIXED SEED TO v2
+        let config_seeds: &[&[u8]] = &[b"platform_config_v2", &[ctx.accounts.platform_config.bump]];
 
         if target_asset == AssetType::Usdc {
-            // SWAP SOL -> USDC
             let usdc_out = (amount_in as u128 * price as u128 / 1_000_000_000) as u64;
-
-            // Vault sends SOL to Bank
             token::transfer(
                 CpiContext::new_with_signer(
                     ctx.accounts.token_program.to_account_info(),
@@ -152,8 +134,6 @@ pub mod defi_copy_trade {
                 ),
                 amount_in,
             )?;
-
-            // Bank sends USDC to Vault
             token::transfer(
                 CpiContext::new_with_signer(
                     ctx.accounts.token_program.to_account_info(),
@@ -167,10 +147,7 @@ pub mod defi_copy_trade {
                 usdc_out,
             )?;
         } else {
-            // SWAP USDC -> SOL
             let sol_out = (amount_in as u128 * 1_000_000_000 / price as u128) as u64;
-
-            // Vault sends USDC to Bank
             token::transfer(
                 CpiContext::new_with_signer(
                     ctx.accounts.token_program.to_account_info(),
@@ -183,8 +160,6 @@ pub mod defi_copy_trade {
                 ),
                 amount_in,
             )?;
-
-            // Bank sends SOL to Vault
             token::transfer(
                 CpiContext::new_with_signer(
                     ctx.accounts.token_program.to_account_info(),
@@ -198,18 +173,14 @@ pub mod defi_copy_trade {
                 sol_out,
             )?;
         }
-
         trader_account.total_trades += 1;
         trader_account.current_asset = target_asset;
         Ok(())
     }
 
-    /// Investor withdraws funds. Profit is calculated based on price from chart.
     pub fn withdraw_funds(ctx: Context<WithdrawFunds>, current_price: u64) -> Result<()> {
         let investor_shares = ctx.accounts.investor_shares_ata.amount;
         let total_supply = ctx.accounts.trader_vault_shares_mint.supply;
-
-        // Calculate current total value of the vault in USD
         let vault_sol = ctx.accounts.trader_vault_token_sol.amount;
         let vault_usdc = ctx.accounts.trader_vault_token_usdc.amount;
         let total_pool_usd = ((vault_sol as u128 * current_price as u128 / 1_000_000_000)
@@ -217,8 +188,6 @@ pub mod defi_copy_trade {
 
         let investor_equity_usd =
             (investor_shares as u128 * total_pool_usd as u128 / total_supply as u128) as u64;
-
-        // Tracking history
         let initial_usd = ctx.accounts.investor_account.initial_deposit_usd_value;
         if investor_equity_usd > initial_usd {
             ctx.accounts.trader_account.lifetime_profit_usd += investor_equity_usd - initial_usd;
@@ -232,14 +201,12 @@ pub mod defi_copy_trade {
             &[ctx.accounts.trader_account.vault_bump],
         ];
 
-        // Convert USD Equity back to tokens (depending on what the vault is currently holding)
         let amount_to_send = if ctx.accounts.trader_account.current_asset == AssetType::Sol {
             (investor_equity_usd as u128 * 1_000_000_000 / current_price as u128) as u64
         } else {
             investor_equity_usd
         };
 
-        // Transfer funds back to investor
         let vault_ata = if ctx.accounts.trader_account.current_asset == AssetType::Sol {
             ctx.accounts.trader_vault_token_sol.to_account_info()
         } else {
@@ -259,7 +226,6 @@ pub mod defi_copy_trade {
             amount_to_send,
         )?;
 
-        // Burn the shares and update pool state
         token::burn(
             CpiContext::new(
                 ctx.accounts.token_program.to_account_info(),
@@ -282,15 +248,17 @@ pub mod defi_copy_trade {
     }
 }
 
-// ─────────────────────────────────────────────
-//  CONTEXTS
-// ─────────────────────────────────────────────
-
 #[derive(Accounts)]
 pub struct InitializePlatform<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
-    #[account(init, payer = admin, space = 8 + PlatformConfig::INIT_SPACE, seeds = [b"platform_config"], bump)]
+    #[account(
+        init, 
+        payer = admin, 
+        space = 8 + PlatformConfig::INIT_SPACE, 
+        seeds = [b"platform_config_v2"], // ✅ FIXED SEED TO v2
+        bump
+    )]
     pub platform_config: Account<'info, PlatformConfig>,
     pub system_program: Program<'info, System>,
 }
@@ -357,7 +325,8 @@ pub struct SignalSwap<'info> {
     pub trader_vault_token_sol: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
     pub trader_vault_token_usdc: Box<Account<'info, TokenAccount>>,
-    #[account(seeds = [b"platform_config"], bump = platform_config.bump)]
+    #[account(seeds = [b"platform_config_v2"], bump = platform_config.bump)]
+    // ✅ FIXED SEED TO v2
     pub platform_config: Box<Account<'info, PlatformConfig>>,
     #[account(mut)]
     pub platform_bank_sol: Box<Account<'info, TokenAccount>>,
