@@ -99,7 +99,7 @@ pub mod defi_copy_trade {
             shares_to_mint,
         )?;
 
-        ctx.accounts.investor_account.initial_deposit_usd_value = deposit_usd_value;
+        ctx.accounts.investor_account.initial_deposit_usd_value += deposit_usd_value;
         trader_account.total_shares_value_usd += deposit_usd_value;
 
         Ok(())
@@ -301,7 +301,7 @@ pub struct CreateTrader<'info> {
 pub struct DepositFunds<'info> {
     #[account(mut)]
     pub investor: Signer<'info>,
-    #[account(init, payer = investor, space = 8 + InvestorAccount::INIT_SPACE, seeds = [investor.key().as_ref(), trader_account.key().as_ref(), b"investor_account"], bump)]
+    #[account(init_if_needed, payer = investor, space = 8 + InvestorAccount::INIT_SPACE, seeds = [investor.key().as_ref(), trader_account.key().as_ref(), b"investor_account_v2"], bump)]
     pub investor_account: Box<Account<'info, InvestorAccount>>,
     #[account(mut)]
     pub trader_account: Box<Account<'info, TraderAccount>>,
@@ -348,7 +348,7 @@ pub struct SignalSwap<'info> {
 pub struct WithdrawFunds<'info> {
     #[account(mut)]
     pub investor: Signer<'info>,
-    #[account(mut, close = investor, seeds = [investor.key().as_ref(), trader_account.key().as_ref(), b"investor_account"], bump)]
+    #[account(mut, close = investor, seeds = [investor.key().as_ref(), trader_account.key().as_ref(), b"investor_account_v2"], bump)]
     pub investor_account: Box<Account<'info, InvestorAccount>>,
     #[account(mut)]
     pub trader_account: Box<Account<'info, TraderAccount>>,

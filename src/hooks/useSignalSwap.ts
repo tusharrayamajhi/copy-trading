@@ -35,9 +35,18 @@ export function useSignalSwap() {
 
         try {
             let priceValue = priceOverride;
-            if (!priceValue) {
+            
+            // Wait and retry for up to 10 seconds if price is missing or 0
+            let attempts = 0;
+            while ((!priceValue || priceValue <= 0) && attempts < 10) {
+                console.log(`[useSignalSwap] Price is ${priceValue}, waiting for live market data (Attempt ${attempts + 1}/10)...`);
                 const { getSolPrice } = await import("../lib/price");
                 priceValue = await getSolPrice();
+                
+                if (!priceValue || priceValue <= 0) {
+                    await new Promise(r => setTimeout(r, 1000)); // Wait 1 second before retry
+                    attempts++;
+                }
             }
 
             if (!priceValue || priceValue <= 0) {

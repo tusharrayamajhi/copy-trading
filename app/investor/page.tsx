@@ -17,6 +17,91 @@ import { useInvestmentLiveStats } from "../../src/hooks/useInvestmentLiveStats";
 
 
 
+function TraderCard({ trader, index, submitting, onDeposit, manualPrice }: { 
+  trader: any, 
+  index: number, 
+  submitting: boolean, 
+  onDeposit: (wallet: string, amount: number) => void,
+  manualPrice: string 
+}) {
+  const [amount, setAmount] = useState<string>("0.1");
+  const commission = trader.account.commissionPercentage / 100;
+  const profit = (trader.account.lifetimeProfitUsd.toNumber() - trader.account.lifetimeLossUsd.toNumber()) / 10 ** 6;
+  const currentAsset = Object.keys(trader.account.currentAsset || {})[0]?.toLowerCase() === "usdc" ? "USDC" : "SOL";
+
+  return (
+    <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden hover:border-cyan-500/30 transition-all group flex flex-col h-full shadow-2xl relative">
+      <Link href={`/trader/${trader.account.traderWallet.toBase58()}`} className="flex-1">
+        {index < 3 && (
+          <div className="absolute top-0 right-8 bg-amber-500/10 text-amber-500 px-3 py-1 rounded-b-xl text-[10px] font-bold uppercase tracking-widest border border-t-0 border-amber-500/20">
+            Top Trader
+          </div>
+        )}
+        <div className="p-8">
+          <div className="flex justify-between items-start mb-6">
+            <div className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20 group-hover:scale-110 transition-transform relative">
+              <Users className="text-white w-7 h-7" />
+              <div className="absolute -top-2 -right-2 w-6 h-6 bg-slate-800 text-cyan-400 rounded-full flex items-center justify-center text-xs font-black border border-cyan-500/30 shadow-md">
+                #{index + 1}
+              </div>
+            </div>
+            <div className="text-right">
+              <p className={`text-lg font-black ${profit >= 0 ? "text-green-400" : "text-red-400"}`}>
+                {profit >= 0 ? "+" : ""}${Math.abs(profit).toFixed(2)}
+              </p>
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Lifetime P&L</p>
+            </div>
+          </div>
+
+          <div className="mb-8">
+            <h3 className="text-xl font-bold mb-1 flex items-center gap-2">Top Signal Provider <ChevronRight className="w-4 h-4 text-slate-600" /></h3>
+            <p className="text-xs text-slate-500 font-mono truncate">{trader.account.traderWallet.toBase58()}</p>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex justify-between items-center py-2 border-b border-slate-800">
+              <span className="text-sm text-slate-400">Commission</span>
+              <span className="text-sm font-bold text-slate-200">{commission}%</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-slate-800">
+              <span className="text-sm text-slate-400">Total Trades</span>
+              <span className="text-sm font-bold text-slate-200">{trader.account.totalTrades.toString()}</span>
+            </div>
+            <div className="flex justify-between items-center py-2">
+              <span className="text-sm text-slate-400">Currently Trading</span>
+              <span className="text-xs font-bold px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-full border border-blue-500/20 uppercase tracking-wider">{currentAsset}</span>
+            </div>
+          </div>
+        </div>
+      </Link>
+
+      <div className="p-8 bg-slate-950 border-t border-slate-800">
+        <div className="flex gap-4 mb-4">
+          <div className="flex-1 relative">
+            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
+            <input
+              type="number"
+              placeholder="Amount in SOL"
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-600">SOL</span>
+          </div>
+        </div>
+        <button
+          onClick={() => onDeposit(trader.account.traderWallet.toBase58(), Number(amount))}
+          disabled={submitting}
+          className="w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-xl shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/40 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+        >
+          {submitting ? "Processing..." : <>Deposit SOL & Follow <ArrowUpRight className="w-4 h-4" /></>}
+        </button>
+        <p className="text-[10px] text-center text-slate-600 mt-4 uppercase font-bold tracking-tighter">Your {amount} SOL will be wrapped into WSOL before deposit</p>
+      </div>
+    </div>
+  );
+}
+
 export default function InvestorDashboard() {
   const { connection } = useConnection();
   const { publicKey } = useWallet();
@@ -26,7 +111,6 @@ export default function InvestorDashboard() {
   const { investments, loading: loadingInvestments, refetch: refetchInvestments } = useMyInvestments(publicKey, traders);
 
   const [manualPrice, setManualPrice] = useState<string>("");
-  const [amount, setAmount] = useState<string>("0.1");
   const [submitting, setSubmitting] = useState(false);
   const [withdrawing, setWithdrawing] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -78,10 +162,9 @@ export default function InvestorDashboard() {
     return () => clearInterval(interval);
   }, [publicKey, connection]);
 
-  const handleDeposit = async (traderWallet: string) => {
+  const handleDeposit = async (traderWallet: string, requestedAmount: number) => {
     try {
       setSubmitting(true);
-      const requestedAmount = Number(amount);
       const lamports = BigInt(Math.floor(requestedAmount * 1e9));
 
       // Check if we need to wrap more SOL
@@ -365,10 +448,10 @@ export default function InvestorDashboard() {
 
                   <button
                     onClick={() => handleWithdraw(inv)}
-                    disabled={submitting}
-                    className="w-full py-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 font-bold rounded-xl border border-red-500/30 transition-all text-sm flex items-center justify-center gap-2"
+                    disabled={submitting || !liveStats[inv.publicKey] || liveStats[inv.publicKey].shares <= 0}
+                    className="w-full py-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 font-bold rounded-xl border border-red-500/30 transition-all text-sm flex items-center justify-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed"
                   >
-                    Withdraw Initial + Profits
+                    {liveStats[inv.publicKey]?.shares <= 0 ? "No Shares Held" : "Withdraw Initial + Profits"}
                   </button>
                 </div>
               );
@@ -422,82 +505,16 @@ export default function InvestorDashboard() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredTraders.map((trader, index) => {
-              const commission = trader.account.commissionPercentage / 100;
-              const profit = (trader.account.lifetimeProfitUsd.toNumber() - trader.account.lifetimeLossUsd.toNumber()) / 10 ** 6;
-              const currentAsset = Object.keys(trader.account.currentAsset || {})[0]?.toLowerCase() === "usdc" ? "USDC" : "SOL";
-
-              return (
-                <div key={trader.publicKey} className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden hover:border-cyan-500/30 transition-all group flex flex-col h-full shadow-2xl relative">
-                  <Link href={`/trader/${trader.account.traderWallet.toBase58()}`} className="flex-1">
-                    {index < 3 && (
-                      <div className="absolute top-0 right-8 bg-amber-500/10 text-amber-500 px-3 py-1 rounded-b-xl text-[10px] font-bold uppercase tracking-widest border border-t-0 border-amber-500/20">
-                        Top Trader
-                      </div>
-                    )}
-                    <div className="p-8">
-                      <div className="flex justify-between items-start mb-6">
-                        <div className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20 group-hover:scale-110 transition-transform relative">
-                          <Users className="text-white w-7 h-7" />
-                          <div className="absolute -top-2 -right-2 w-6 h-6 bg-slate-800 text-cyan-400 rounded-full flex items-center justify-center text-xs font-black border border-cyan-500/30 shadow-md">
-                            #{index + 1}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className={`text-lg font-black ${profit >= 0 ? "text-green-400" : "text-red-400"}`}>
-                            {profit >= 0 ? "+" : ""}${Math.abs(profit).toFixed(2)}
-                          </p>
-                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Lifetime P&L</p>
-                        </div>
-                      </div>
-
-                      <div className="mb-8">
-                        <h3 className="text-xl font-bold mb-1 flex items-center gap-2">Top Signal Provider <ChevronRight className="w-4 h-4 text-slate-600" /></h3>
-                        <p className="text-xs text-slate-500 font-mono truncate">{trader.account.traderWallet.toBase58()}</p>
-                      </div>
-
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center py-2 border-b border-slate-800">
-                          <span className="text-sm text-slate-400">Commission</span>
-                          <span className="text-sm font-bold text-slate-200">{commission}%</span>
-                        </div>
-                        <div className="flex justify-between items-center py-2 border-b border-slate-800">
-                          <span className="text-sm text-slate-400">Total Trades</span>
-                          <span className="text-sm font-bold text-slate-200">{trader.account.totalTrades.toString()}</span>
-                        </div>
-                        <div className="flex justify-between items-center py-2">
-                          <span className="text-sm text-slate-400">Currently Trading</span>
-                          <span className="text-xs font-bold px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-full border border-blue-500/20 uppercase tracking-wider">{currentAsset}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
-
-                  <div className="p-8 bg-slate-950 border-t border-slate-800">
-                    <div className="flex gap-4 mb-4">
-                      <div className="flex-1 relative">
-                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
-                        <input
-                          type="number"
-                          placeholder="SOL"
-                          className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
-                          value={amount}
-                          onChange={(e) => setAmount(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleDeposit(trader.account.traderWallet.toBase58())}
-                      disabled={submitting}
-                      className="w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-xl shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/40 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                    >
-                      {submitting ? "Processing..." : <>Deposit SOL & Follow <ArrowUpRight className="w-4 h-4" /></>}
-                    </button>
-                    <p className="text-[10px] text-center text-slate-600 mt-4 uppercase font-bold tracking-tighter">SOL will be wrapped into WSOL before deposit</p>
-                  </div>
-                </div>
-              );
-            })}
+            {filteredTraders.map((trader, index) => (
+              <TraderCard
+                key={trader.publicKey}
+                trader={trader}
+                index={index}
+                submitting={submitting}
+                onDeposit={handleDeposit}
+                manualPrice={manualPrice}
+              />
+            ))}
           </div>
         )}
       </div>

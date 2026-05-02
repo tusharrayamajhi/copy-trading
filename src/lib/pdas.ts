@@ -25,7 +25,7 @@ export function getTraderVaultPDA(traderWallet: PublicKey) {
 
 export function getInvestorAccountPDA(investorWallet: PublicKey, traderAccount: PublicKey) {
     return PublicKey.findProgramAddressSync(
-        [investorWallet.toBuffer(), traderAccount.toBuffer(), Buffer.from("investor_account")],
+        [investorWallet.toBuffer(), traderAccount.toBuffer(), Buffer.from("investor_account_v2")],
         PROGRAM_ID
     );
 }

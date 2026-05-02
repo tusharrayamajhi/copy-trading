@@ -54,9 +54,15 @@ export function useInvestmentLiveStats(investorWallet: PublicKey | null, investm
                     const [traderVault] = getTraderVaultPDA(traderWallet);
                     const [sharesMint] = getSharesMintPDA(traderAccountPubkey);
 
+                    console.log(`[LiveStats] Checking Trader: ${traderWallet.toBase58().slice(0,4)}...`);
+                    console.log(`[LiveStats] --> Shares Mint: ${sharesMint.toBase58()}`);
+                    console.log(`[LiveStats] --> Investor Wallet: ${investorWallet.toBase58()}`);
+
                     const vaultSolAta = getATA(WSOL_MINT, traderVault, true);
                     const vaultUsdcAta = getATA(USDC_MINT, traderVault, true);
                     const investorSharesAta = getATA(sharesMint, investorWallet);
+
+                    console.log(`[LiveStats] --> Investor Shares ATA: ${investorSharesAta.toBase58()}`);
 
                     accountRequests.push(
                         { pubkey: vaultSolAta, type: 'token', invKey: inv.publicKey, meta: 'vaultSol' },
@@ -81,22 +87,25 @@ export function useInvestmentLiveStats(investorWallet: PublicKey | null, investm
                     if (!resultsByInv[req.invKey]) resultsByInv[req.invKey] = {};
 
                     if (!info) {
-                        console.warn(`[LiveStats] Account not found: ${req.pubkey.toBase58()} (type: ${req.type}, meta: ${req.meta})`);
-                        resultsByInv[req.invKey][req.meta] = null;
+                        console.warn(`[LiveStats] Account not found: ${req.type} - ${req.pubkey.toBase58()}`);
                         return;
                     }
 
                     try {
                         if (req.type === 'token') {
                             const decoded = AccountLayout.decode(info.data);
-                            // Robust BigInt handling
-                            const amount = BigInt(decoded.amount as any);
+                            const amount = Number(decoded.amount.toString());
+                            console.log(`DEBUG: ATA ${req.pubkey.toBase58()} Balance detected:`, amount);
                             resultsByInv[req.invKey][req.meta] = amount;
                         } else if (req.type === 'mint') {
                             const decoded = MintLayout.decode(info.data);
-                            // Robust BigInt handling
-                            const supply = BigInt(decoded.supply as any);
-                            resultsByInv[req.invKey][req.meta] = supply;
+                            
+                            // FIX: Safely convert BigInt to Number as requested
+                            const supplyValue = Number(decoded.supply.toString()); 
+                            
+                            console.log(`DEBUG: Mint ${req.pubkey.toBase58()} Supply detected:`, supplyValue);
+                            
+                            resultsByInv[req.invKey][req.meta] = supplyValue;
                         } else if (req.type === 'trader') {
                             const decoded = (program.account.traderAccount as any).coder.accounts.decode("TraderAccount", info.data);
                             resultsByInv[req.invKey][req.meta] = decoded;
@@ -104,9 +113,8 @@ export function useInvestmentLiveStats(investorWallet: PublicKey | null, investm
                             const decoded = (program.account.investorAccount as any).coder.accounts.decode("InvestorAccount", info.data);
                             resultsByInv[req.invKey][req.meta] = decoded;
                         }
-                    } catch (decodeErr) {
-                        console.error(`[LiveStats] Decoding failed for ${req.meta}:`, decodeErr);
-                        resultsByInv[req.invKey][req.meta] = null;
+                    } catch (e) {
+                        console.error(`[LiveStats] Decoding error for ${req.type}:`, e);
                     }
                 });
 
@@ -194,7 +202,7 @@ export function useInvestmentLiveStats(investorWallet: PublicKey | null, investm
         fetchLiveStats();
         const interval = setInterval(fetchLiveStats, 10000);
         return () => clearInterval(interval);
-    }, [connection, program, investorWallet?.toBase58(), investments.length, traders.length, solPrice]);
+    }, [connection, program, investorWallet?.toBase58(), JSON.stringify(investments.map(i => i.publicKey)), traders.length, solPrice]);
 
     return { stats, loading };
 }

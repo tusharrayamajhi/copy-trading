@@ -424,6 +424,16 @@
             "code": 6002,
             "name": "Unauthorized",
             "msg": "Unauthorized"
+        },
+        {
+            "code": 6003,
+            "name": "VaultEmpty",
+            "msg": "Vault is empty"
+        },
+        {
+            "code": 6004,
+            "name": "InvalidPrice",
+            "msg": "Invalid price provided"
         }
     ]
 }
