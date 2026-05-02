@@ -2,6 +2,7 @@
 
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useAllTraders } from "../../src/hooks/useTraderQueries";
 import { useMyInvestments } from "../../src/hooks/useInvestorQueries";
 import { useDeposit } from "../../src/hooks/useDeposit";
@@ -11,6 +12,10 @@ import { PublicKey } from "@solana/web3.js";
 import { Search, Wallet, TrendingUp, Shield, BarChart3, ArrowUpRight, DollarSign, Activity, Users, ChevronRight, Vault } from "lucide-react";
 import toast from "react-hot-toast";
 import { BankStatus } from "../../src/components/BankStatus";
+import { TransactionHistory } from "../../src/components/TransactionHistory";
+import { useInvestmentLiveStats } from "../../src/hooks/useInvestmentLiveStats";
+
+
 
 export default function InvestorDashboard() {
   const { connection } = useConnection();
@@ -19,14 +24,16 @@ export default function InvestorDashboard() {
   const [wsolBalance, setWsolBalance] = useState<number | null>(null);
   const { traders, loading: loadingTraders, refetch: refetchTraders } = useAllTraders();
   const { investments, loading: loadingInvestments, refetch: refetchInvestments } = useMyInvestments(publicKey, traders);
-  const deposit = useDeposit();
-  const withdraw = useWithdraw();
-  const { wrap } = useWrapSol();
-
+  
+  const [manualPrice, setManualPrice] = useState<string>("");
   const [amount, setAmount] = useState<string>("0.1");
   const [submitting, setSubmitting] = useState(false);
   const [search, setSearch] = useState("");
-  const [manualPrice, setManualPrice] = useState<string>("");
+
+  const deposit = useDeposit();
+  const withdraw = useWithdraw();
+  const { wrap } = useWrapSol();
+  const { stats: liveStats, loading: loadingStats } = useInvestmentLiveStats(publicKey, investments, traders, Number(manualPrice));
 
   useEffect(() => {
     const fetchPrice = async () => {
@@ -40,7 +47,7 @@ export default function InvestorDashboard() {
       }
     };
     fetchPrice();
-    const interval = setInterval(fetchPrice, 10000); // 10s
+    const interval = setInterval(fetchPrice, 30000); // 30s
     return () => clearInterval(interval);
   }, []);
 
@@ -66,7 +73,7 @@ export default function InvestorDashboard() {
       }
     };
     fetchBalance();
-    const interval = setInterval(fetchBalance, 10000);
+    const interval = setInterval(fetchBalance, 30000);
     return () => clearInterval(interval);
   }, [publicKey, connection]);
 
@@ -170,8 +177,30 @@ export default function InvestorDashboard() {
       {/* My Portfolio Section */}
       <div className="mb-16">
         <h2 className="text-3xl font-bold mb-8 flex items-center gap-3">
-          <Activity className="text-cyan-400 w-8 h-8" /> Active Investments
+          <Activity className="text-cyan-400 w-8 h-8" /> Portfolio Performance
         </h2>
+
+        {/* Portfolio Summary */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+            <div className="bg-slate-900/80 border border-slate-800 p-8 rounded-3xl backdrop-blur-xl">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Total Invested</p>
+                <p className="text-3xl font-black text-white">
+                    ${investments.reduce((acc, inv) => acc + (inv.account.initialDepositUsdValue.toNumber() / 1e6), 0).toFixed(2)}
+                </p>
+            </div>
+            <div className="bg-slate-900/80 border border-slate-800 p-8 rounded-3xl backdrop-blur-xl">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Current Value</p>
+                <p className="text-3xl font-black text-cyan-400">
+                    ${Object.values(liveStats).reduce((acc, s) => acc + s.currentValue, 0).toFixed(2)}
+                </p>
+            </div>
+            <div className="bg-slate-900/80 border border-slate-800 p-8 rounded-3xl backdrop-blur-xl">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Net Unrealized P&L</p>
+                <p className={`text-3xl font-black ${Object.values(liveStats).reduce((acc, s) => acc + s.pnl, 0) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                    ${Object.values(liveStats).reduce((acc, s) => acc + s.pnl, 0).toFixed(2)}
+                </p>
+            </div>
+        </div>
 
         {loadingInvestments ? (
           <div className="h-40 flex items-center justify-center bg-slate-900/30 border border-slate-800/50 rounded-3xl animate-pulse">
@@ -211,14 +240,26 @@ export default function InvestorDashboard() {
 
                   <div className="grid grid-cols-2 gap-4 mb-8">
                     <div className="p-3 bg-slate-950 rounded-xl border border-slate-800">
-                      <p className="text-[10px] text-slate-500 uppercase font-bold mb-1">Initial Value</p>
+                      <p className="text-[10px] text-slate-500 uppercase font-bold mb-1">Invested</p>
                       <p className="font-bold text-slate-200">${initialUsd.toFixed(2)}</p>
                     </div>
                     <div className="p-3 bg-slate-950 rounded-xl border border-slate-800">
-                      <p className="text-[10px] text-slate-500 uppercase font-bold mb-1">Trader Net Profit</p>
-                      <p className={`font-bold ${traderProfit >= 0 ? "text-green-400" : "text-red-400"}`}>
-                        {traderProfit >= 0 ? "+" : ""}${traderProfit.toFixed(2)}
+                      <p className="text-[10px] text-slate-500 uppercase font-bold mb-1">Current Value</p>
+                      <p className="font-bold text-cyan-400">
+                        {liveStats[inv.publicKey] ? `$${liveStats[inv.publicKey].currentValue.toFixed(2)}` : "..."}
                       </p>
+                    </div>
+                  </div>
+
+                  <div className="mb-8 p-4 bg-slate-950 rounded-2xl border border-slate-800 flex justify-between items-center">
+                    <div>
+                        <p className="text-[10px] text-slate-500 uppercase font-bold mb-0.5">Your P&L</p>
+                        <p className={`text-xl font-black ${liveStats[inv.publicKey]?.pnl >= 0 ? "text-green-400" : "text-red-400"}`}>
+                            {liveStats[inv.publicKey] ? `${liveStats[inv.publicKey].pnl >= 0 ? "+" : ""}$${liveStats[inv.publicKey].pnl.toFixed(2)}` : "..."}
+                        </p>
+                    </div>
+                    <div className={`px-3 py-1 rounded-lg text-xs font-bold ${liveStats[inv.publicKey]?.pnlPercent >= 0 ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"}`}>
+                        {liveStats[inv.publicKey] ? `${liveStats[inv.publicKey].pnlPercent >= 0 ? "+" : ""}${liveStats[inv.publicKey].pnlPercent.toFixed(2)}%` : "..."}
                     </div>
                   </div>
 
@@ -235,6 +276,7 @@ export default function InvestorDashboard() {
           </div>
         )}
       </div>
+
 
       {/* Platform Liquidity Info */}
       <div className="mb-16 max-w-lg">
@@ -286,48 +328,50 @@ export default function InvestorDashboard() {
               const currentAsset = Object.keys(trader.account.currentAsset || {})[0]?.toLowerCase() === "usdc" ? "USDC" : "SOL";
 
               return (
-                <div key={trader.publicKey} className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden hover:border-slate-600 transition-all group flex flex-col h-full shadow-2xl relative">
-                  {index < 3 && (
-                     <div className="absolute top-0 right-8 bg-amber-500/10 text-amber-500 px-3 py-1 rounded-b-xl text-[10px] font-bold uppercase tracking-widest border border-t-0 border-amber-500/20">
-                         Top Trader
-                     </div>
-                  )}
-                  <div className="p-8 flex-1">
-                    <div className="flex justify-between items-start mb-6">
-                      <div className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20 group-hover:scale-110 transition-transform relative">
-                        <Users className="text-white w-7 h-7" />
-                        <div className="absolute -top-2 -right-2 w-6 h-6 bg-slate-800 text-cyan-400 rounded-full flex items-center justify-center text-xs font-black border border-cyan-500/30 shadow-md">
-                          #{index + 1}
+                <div key={trader.publicKey} className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden hover:border-cyan-500/30 transition-all group flex flex-col h-full shadow-2xl relative">
+                  <Link href={`/trader/${trader.account.traderWallet.toBase58()}`} className="flex-1">
+                    {index < 3 && (
+                       <div className="absolute top-0 right-8 bg-amber-500/10 text-amber-500 px-3 py-1 rounded-b-xl text-[10px] font-bold uppercase tracking-widest border border-t-0 border-amber-500/20">
+                           Top Trader
+                       </div>
+                    )}
+                    <div className="p-8">
+                      <div className="flex justify-between items-start mb-6">
+                        <div className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20 group-hover:scale-110 transition-transform relative">
+                          <Users className="text-white w-7 h-7" />
+                          <div className="absolute -top-2 -right-2 w-6 h-6 bg-slate-800 text-cyan-400 rounded-full flex items-center justify-center text-xs font-black border border-cyan-500/30 shadow-md">
+                            #{index + 1}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className={`text-lg font-black ${profit >= 0 ? "text-green-400" : "text-red-400"}`}>
+                            {profit >= 0 ? "+" : ""}${Math.abs(profit).toFixed(2)}
+                          </p>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Lifetime P&L</p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className={`text-lg font-black ${profit >= 0 ? "text-green-400" : "text-red-400"}`}>
-                          {profit >= 0 ? "+" : ""}${Math.abs(profit).toFixed(2)}
-                        </p>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Lifetime P&L</p>
-                      </div>
-                    </div>
 
-                    <div className="mb-8">
-                      <h3 className="text-xl font-bold mb-1 flex items-center gap-2">Top Signal Provider <ChevronRight className="w-4 h-4 text-slate-600" /></h3>
-                      <p className="text-xs text-slate-500 font-mono truncate">{trader.account.traderWallet.toBase58()}</p>
-                    </div>
+                      <div className="mb-8">
+                        <h3 className="text-xl font-bold mb-1 flex items-center gap-2">Top Signal Provider <ChevronRight className="w-4 h-4 text-slate-600" /></h3>
+                        <p className="text-xs text-slate-500 font-mono truncate">{trader.account.traderWallet.toBase58()}</p>
+                      </div>
 
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center py-2 border-b border-slate-800">
-                        <span className="text-sm text-slate-400">Commission</span>
-                        <span className="text-sm font-bold text-slate-200">{commission}%</span>
-                      </div>
-                      <div className="flex justify-between items-center py-2 border-b border-slate-800">
-                        <span className="text-sm text-slate-400">Total Trades</span>
-                        <span className="text-sm font-bold text-slate-200">{trader.account.totalTrades.toString()}</span>
-                      </div>
-                      <div className="flex justify-between items-center py-2">
-                        <span className="text-sm text-slate-400">Currently Trading</span>
-                        <span className="text-xs font-bold px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-full border border-blue-500/20 uppercase tracking-wider">{currentAsset}</span>
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center py-2 border-b border-slate-800">
+                          <span className="text-sm text-slate-400">Commission</span>
+                          <span className="text-sm font-bold text-slate-200">{commission}%</span>
+                        </div>
+                        <div className="flex justify-between items-center py-2 border-b border-slate-800">
+                          <span className="text-sm text-slate-400">Total Trades</span>
+                          <span className="text-sm font-bold text-slate-200">{trader.account.totalTrades.toString()}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-2">
+                          <span className="text-sm text-slate-400">Currently Trading</span>
+                          <span className="text-xs font-bold px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-full border border-blue-500/20 uppercase tracking-wider">{currentAsset}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </Link>
 
                   <div className="p-8 bg-slate-950 border-t border-slate-800">
                     <div className="flex gap-4 mb-4">
@@ -378,6 +422,10 @@ export default function InvestorDashboard() {
             <p className="text-slate-400 text-sm leading-relaxed">Your capital joins the trader's vault and is swapped between WSOL and USDC in the platform bank as the trader signals strategy changes.</p>
           </div>
         </div>
+      </div>
+
+      <div className="mt-12">
+        <TransactionHistory wallet={publicKey} isTrader={false} />
       </div>
     </div>
   );

@@ -10,6 +10,8 @@ import { Activity, Copy, CheckCircle2, AlertCircle, DollarSign, ArrowLeftRight, 
 import toast from "react-hot-toast";
 import Link from "next/link";
 import { BankStatus } from "../../src/components/BankStatus";
+import { TransactionHistory } from "../../src/components/TransactionHistory";
+
 
 export default function TraderDashboard() {
   const { connection } = useConnection();
@@ -39,7 +41,7 @@ export default function TraderDashboard() {
         }
     };
     fetchPrice();
-    const interval = setInterval(fetchPrice, 10000); // Update every 10s
+    const interval = setInterval(fetchPrice, 30000); // Update every 30s
     return () => clearInterval(interval);
   }, []);
 
@@ -50,7 +52,7 @@ export default function TraderDashboard() {
         setWalletBalance(bal / 1e9);
     };
     fetchBalance();
-    const interval = setInterval(fetchBalance, 10000);
+    const interval = setInterval(fetchBalance, 30000);
     return () => clearInterval(interval);
   }, [publicKey, connection]);
 
@@ -69,7 +71,7 @@ export default function TraderDashboard() {
         }
     };
     fetchVaultBalances();
-    const interval = setInterval(fetchVaultBalances, 10000);
+    const interval = setInterval(fetchVaultBalances, 30000);
     return () => clearInterval(interval);
   }, [traderAccount, connection]);
 
@@ -335,9 +337,10 @@ export default function TraderDashboard() {
                         <p className="text-xs text-slate-500 uppercase">Losses</p>
                         <p className="text-lg font-bold text-red-400/80">${loss.toFixed(2)}</p>
                     </div>
-                </div>
-             </div>
+              </div>
+           </div>
           </div>
+
         </div>
 
         {/* Sidebar Info */}
@@ -380,6 +383,10 @@ export default function TraderDashboard() {
                 </p>
             </div>
         </div>
+      </div>
+      
+      <div className="mt-12">
+        <TransactionHistory wallet={publicKey} />
       </div>
     </div>
   );
