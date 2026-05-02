@@ -72,10 +72,13 @@ pub mod defi_copy_trade {
         )?;
 
         let trader_account = &mut ctx.accounts.trader_account;
-        let shares_to_mint = if trader_account.total_shares_value_usd == 0 {
+        let total_supply = ctx.accounts.trader_vault_shares_mint.supply;
+
+        let shares_to_mint = if total_supply == 0 {
+            // If supply is 0, we must also reset the USD tracking to ensure math stays in sync
+            trader_account.total_shares_value_usd = 0;
             deposit_usd_value
         } else {
-            let total_supply = ctx.accounts.trader_vault_shares_mint.supply;
             (deposit_usd_value as u128 * total_supply as u128
                 / trader_account.total_shares_value_usd as u128) as u64
         };

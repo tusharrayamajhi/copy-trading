@@ -48,8 +48,8 @@ export function useInvestmentLiveStats(investorWallet: PublicKey | null, investm
 
                     const traderAccountPubkey = new PublicKey(trader.publicKey);
                     const investorAccountPubkey = new PublicKey(inv.publicKey);
-
-                    // DERIVE addresses directly to ensure they match the contract's expected PDAs
+                    
+                    // DERIVE addresses directly (needed because traderVault is not stored in account data)
                     const traderWallet = new PublicKey(trader.account.traderWallet);
                     const [traderVault] = getTraderVaultPDA(traderWallet);
                     const [sharesMint] = getSharesMintPDA(traderAccountPubkey);
