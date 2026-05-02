@@ -111,6 +111,7 @@ pub mod defi_copy_trade {
         amount_in: u64,
         price: u64,
     ) -> Result<()> {
+        require!(price > 0, ErrorCode::InvalidPrice);
         let trader_account = &mut ctx.accounts.trader_account;
         let vault_seeds: &[&[u8]] = &[
             trader_account.trader_wallet.as_ref(),
@@ -180,9 +181,17 @@ pub mod defi_copy_trade {
 
     pub fn withdraw_funds(ctx: Context<WithdrawFunds>, current_price: u64) -> Result<()> {
         let investor_shares = ctx.accounts.investor_shares_ata.amount;
+        require!(investor_shares > 0, ErrorCode::AmountZero);
+        
         let total_supply = ctx.accounts.trader_vault_shares_mint.supply;
+        require!(total_supply > 0, ErrorCode::VaultEmpty);
+
         let vault_sol = ctx.accounts.trader_vault_token_sol.amount;
         let vault_usdc = ctx.accounts.trader_vault_token_usdc.amount;
+        
+        // Ensure price is not zero to avoid division by zero later
+        require!(current_price > 0, ErrorCode::InvalidPrice);
+
         let total_pool_usd = ((vault_sol as u128 * current_price as u128 / 1_000_000_000)
             + vault_usdc as u128) as u64;
 
@@ -403,4 +412,8 @@ pub enum ErrorCode {
     AmountZero,
     #[msg("Unauthorized")]
     Unauthorized,
+    #[msg("Vault is empty")]
+    VaultEmpty,
+    #[msg("Invalid price provided")]
+    InvalidPrice,
 }

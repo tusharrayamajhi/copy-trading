@@ -5,15 +5,15 @@ import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { useState, useEffect, use } from "react";
 import { useTraderAccount } from "../../../src/hooks/useTraderQueries";
 import { PublicKey } from "@solana/web3.js";
-import { 
-    ArrowLeft, 
-    Activity, 
-    BarChart3, 
-    Shield, 
-    TrendingUp, 
-    Users, 
-    ArrowUpRight, 
-    DollarSign, 
+import {
+    ArrowLeft,
+    Activity,
+    BarChart3,
+    Shield,
+    TrendingUp,
+    Users,
+    ArrowUpRight,
+    DollarSign,
     Vault,
     Clock,
     Target
@@ -30,26 +30,26 @@ export default function TraderDetailPage() {
     const address = params.address as string;
     const { publicKey } = useWallet();
     const { connection } = useConnection();
-    
+
     const traderPubkey = new PublicKey(address);
     const { data: traderAccount, loading, refetch } = useTraderAccount(traderPubkey);
-    
+
     const deposit = useDeposit();
     const { wrap } = useWrapSol();
-    
+
     const [amount, setAmount] = useState<string>("0.1");
     const [submitting, setSubmitting] = useState(false);
     const [manualPrice, setManualPrice] = useState<string>("...");
 
     useEffect(() => {
         const fetchPrice = async () => {
-          try {
-            const { getSolPrice } = await import("../../../src/lib/price");
-            const price = await getSolPrice();
-            setManualPrice(price.toFixed(2));
-          } catch (e) {
-            setManualPrice("145.00");
-          }
+            try {
+                const { getSolPrice } = await import("../../../src/lib/price");
+                const price = await getSolPrice();
+                setManualPrice(price.toFixed(2));
+            } catch (e) {
+                setManualPrice("145.00");
+            }
         };
         fetchPrice();
     }, []);
@@ -60,29 +60,29 @@ export default function TraderDetailPage() {
             return;
         }
         try {
-          setSubmitting(true);
-          const requestedAmount = Number(amount);
-          const lamports = BigInt(Math.floor(requestedAmount * 1e9));
+            setSubmitting(true);
+            const requestedAmount = Number(amount);
+            const lamports = BigInt(Math.floor(requestedAmount * 1e9));
 
-          toast.loading("Preparing funds (Wrapping SOL)...", { id: "deposit" });
-          
-          // 1. Ensure user has enough WSOL by wrapping native SOL
-          try {
-              await wrap(requestedAmount);
-          } catch (wrapErr: any) {
-              console.error("Wrapping failed:", wrapErr);
-              throw new Error("Failed to wrap SOL. Please ensure you have enough balance.");
-          }
+            toast.loading("Preparing funds (Wrapping SOL)...", { id: "deposit" });
 
-          toast.loading("Processing deposit...", { id: "deposit" });
-          await deposit(traderPubkey, lamports);
-          toast.success("Deposit successful!", { id: "deposit" });
-          refetch();
+            // 1. Ensure user has enough WSOL by wrapping native SOL
+            try {
+                await wrap(requestedAmount);
+            } catch (wrapErr: any) {
+                console.error("Wrapping failed:", wrapErr);
+                throw new Error("Failed to wrap SOL. Please ensure you have enough balance.");
+            }
+
+            toast.loading("Processing deposit...", { id: "deposit" });
+            await deposit(traderPubkey, lamports);
+            toast.success("Deposit successful!", { id: "deposit" });
+            refetch();
         } catch (err: any) {
-          console.error("Deposit Error:", err);
-          toast.error(err.message || "Deposit failed", { id: "deposit" });
+            console.error("Deposit Error:", err);
+            toast.error(err.message || "Deposit failed", { id: "deposit" });
         } finally {
-          setSubmitting(false);
+            setSubmitting(false);
         }
     };
 
@@ -127,14 +127,14 @@ export default function TraderDetailPage() {
 
             <div className="container mx-auto px-6 py-12">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-                    
+
                     {/* Main Content */}
                     <div className="lg:col-span-2 space-y-12">
-                        
+
                         {/* Profile Hero */}
                         <div className="bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-[2.5rem] p-10 relative overflow-hidden shadow-2xl">
                             <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/5 blur-[100px] rounded-full -mr-32 -mt-32" />
-                            
+
                             <div className="flex flex-col md:flex-row gap-8 items-start relative z-10">
                                 <div className="w-24 h-24 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-3xl flex items-center justify-center shadow-2xl shadow-cyan-500/20">
                                     <Users className="text-white w-10 h-10" />
@@ -147,7 +147,7 @@ export default function TraderDetailPage() {
                                     <p className="text-slate-400 font-mono text-sm break-all mb-8 bg-slate-950/50 p-3 rounded-xl border border-slate-800 inline-block">
                                         {address}
                                     </p>
-                                    
+
                                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-8">
                                         <div>
                                             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Lifetime P&L</p>
@@ -183,9 +183,9 @@ export default function TraderDetailPage() {
                                     <span className="text-sm font-bold text-cyan-400">${manualPrice}</span>
                                 </div>
                             </div>
-                            
+
                             <div className="w-full h-[400px] bg-slate-950 rounded-3xl border border-slate-800 overflow-hidden shadow-inner mb-8">
-                                <iframe 
+                                <iframe
                                     src={`https://s.tradingview.com/widgetembed/?frameElementId=tradingview_76d4d&symbol=BINANCE%3A${currentAsset === "SOL" ? "SOLUSDT" : "USDCUSDT"}&interval=D&hidesidetoolbar=1&hidetoptoolbar=1&symboledit=1&saveimage=1&toolbarbg=f1f3f6&studies=%5B%5D&theme=dark&style=1&timezone=Etc%2FUTC&studies_overrides=%7B%7D&overrides=%7B%7D&enabled_features=%5B%5D&disabled_features=%5B%5D&locale=en&utm_source=localhost&utm_medium=widget&utm_campaign=chart&utm_term=BINANCE%3ASOLUSDT`}
                                     style={{ width: '100%', height: '100%', border: 'none' }}
                                 />
@@ -198,7 +198,7 @@ export default function TraderDetailPage() {
                                         <h4 className="font-bold">Strategy Goal</h4>
                                     </div>
                                     <p className="text-sm text-slate-400 leading-relaxed">
-                                        This provider focuses on {currentAsset === 'SOL' ? 'aggressive SOL growth' : 'capital protection in USDC'}. 
+                                        This provider focuses on {currentAsset === 'SOL' ? 'aggressive SOL growth' : 'capital protection in USDC'}.
                                         They maintain high liquidity and react quickly to market volatility.
                                     </p>
                                 </div>
@@ -225,13 +225,13 @@ export default function TraderDetailPage() {
                             <p className="text-cyan-100/70 text-sm mb-8 leading-relaxed">
                                 Join this trader's vault. Your capital will automatically mirror their strategy changes.
                             </p>
-                            
+
                             <div className="space-y-6">
                                 <div>
                                     <label className="block text-[10px] font-bold text-cyan-200 uppercase tracking-widest mb-2">Deposit Amount (SOL)</label>
                                     <div className="relative">
                                         <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-300" />
-                                        <input 
+                                        <input
                                             type="number"
                                             value={amount}
                                             onChange={(e) => setAmount(e.target.value)}
@@ -241,14 +241,14 @@ export default function TraderDetailPage() {
                                     </div>
                                 </div>
 
-                                <button 
+                                <button
                                     onClick={handleDeposit}
                                     disabled={submitting}
                                     className="w-full bg-white text-blue-700 font-black py-5 rounded-2xl shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 uppercase tracking-wider"
                                 >
                                     {submitting ? "Processing..." : <>Confirm Deposit <ArrowUpRight className="w-5 h-5" /></>}
                                 </button>
-                                
+
                                 <div className="p-4 bg-white/5 rounded-2xl border border-white/10 text-[10px] text-cyan-100 leading-tight">
                                     <strong>Note:</strong> Depositing will issue Vault Shares to your wallet. You can withdraw at any time for your principal plus any accrued profits.
                                 </div>
@@ -276,7 +276,7 @@ export default function TraderDetailPage() {
                                 </div>
                             </div>
                         </div>
-                        
+
                         <BankStatus />
                     </div>
 

@@ -145,9 +145,9 @@ export function TransactionHistory({ wallet, isTrader = true }: TransactionHisto
                                     )}
                                     <div>
                                         <p className="text-[9px] text-slate-500 uppercase font-bold mb-0.5">Status</p>
-                                        <p className="text-xs font-bold text-slate-400 flex items-center gap-1">
+                                        <div className="text-xs font-bold text-slate-400 flex items-center gap-1">
                                             <div className={`w-1.5 h-1.5 rounded-full ${tx.status === 'success' ? 'bg-green-500' : 'bg-red-500'}`} /> {tx.status === 'success' ? 'Confirmed' : 'Error'}
-                                        </p>
+                                        </div>
                                     </div>
                                 </div>
                             )}

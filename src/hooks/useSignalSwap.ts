@@ -39,6 +39,10 @@ export function useSignalSwap() {
                 const { getSolPrice } = await import("../lib/price");
                 priceValue = await getSolPrice();
             }
+
+            if (!priceValue || priceValue <= 0) {
+                throw new Error("Unable to fetch a valid SOL price for swap. Please try again in a few seconds.");
+            }
             const priceBN = new anchor.BN(Math.floor(priceValue * 1e6));
 
             const tx = await program.methods
@@ -63,7 +67,7 @@ export function useSignalSwap() {
             return tx;
         } catch (err: any) {
             console.error("Swap Error Details:", err);
-            
+
             // Handle specific case where transaction actually succeeded but RPC retried
             if (err.message?.includes("already been processed")) {
                 toast.success("Transaction likely succeeded! Refreshing status...");

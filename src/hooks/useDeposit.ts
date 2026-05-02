@@ -12,7 +12,7 @@ export function useDeposit() {
     const program = useProgram();
     const { publicKey } = useWallet();
 
-    return async (traderWallet: PublicKey, amountLamports: bigint) => {
+    return async (traderWallet: PublicKey, amountLamports: bigint, priceOverride?: number) => {
         if (!program || !publicKey) throw new Error("Wallet not connected");
 
         const [traderAccount] = getTraderAccountPDA(traderWallet);
@@ -27,8 +27,16 @@ export function useDeposit() {
         const investorSharesAta = getATA(sharesMint, publicKey);
         const vaultSolAta = getATA(WSOL_MINT, traderVault, true);
 
-        const { getSolPrice } = await import("../lib/price");
-        const priceValue = await getSolPrice();
+        let priceValue = priceOverride;
+        if (!priceValue) {
+            const { getSolPrice } = await import("../lib/price");
+            priceValue = await getSolPrice();
+        }
+
+        if (!priceValue || priceValue <= 0) {
+            throw new Error("Unable to fetch a valid SOL price. Please try again in a few seconds to avoid a failed deposit.");
+        }
+
         const priceBN = new anchor.BN(Math.floor(priceValue * 1e6));
 
         try {

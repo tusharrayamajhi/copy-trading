@@ -24,10 +24,11 @@ export default function InvestorDashboard() {
   const [wsolBalance, setWsolBalance] = useState<number | null>(null);
   const { traders, loading: loadingTraders, refetch: refetchTraders } = useAllTraders();
   const { investments, loading: loadingInvestments, refetch: refetchInvestments } = useMyInvestments(publicKey, traders);
-  
+
   const [manualPrice, setManualPrice] = useState<string>("");
   const [amount, setAmount] = useState<string>("0.1");
   const [submitting, setSubmitting] = useState(false);
+  const [withdrawing, setWithdrawing] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
   const deposit = useDeposit();
@@ -99,7 +100,7 @@ export default function InvestorDashboard() {
       const price = Number(manualPrice);
       if (isNaN(price) || price <= 0) throw new Error("Please enter a valid price");
 
-      await deposit(new PublicKey(traderWallet), lamports);
+      await deposit(new PublicKey(traderWallet), lamports, price);
 
       toast.success("Deposit successful!", { id: "deposit" });
       refetchInvestments();
@@ -111,19 +112,26 @@ export default function InvestorDashboard() {
     }
   };
 
-  const handleWithdraw = async (traderPubkey: string) => {
+  const handleWithdraw = async (investment: any) => {
     try {
-      setSubmitting(true);
-      toast.loading("Closing investment...", { id: "withdraw" });
+      if (!investment || !investment.linkedTraderPubkey) {
+        throw new Error("Investment data is missing linked trader address.");
+      }
 
-      await withdraw(new PublicKey(traderPubkey));
-      toast.success("Withdrawal successful! Initial + Profit returned.", { id: "withdraw" });
+      setWithdrawing(investment.publicKey);
+      toast.loading("Withdrawing from Vault...", { id: "withdraw" });
+      
+      console.log("Withdrawing with Trader PDA:", investment.linkedTraderPubkey);
+      const traderPda = typeof investment.linkedTraderPubkey === 'string' ? investment.linkedTraderPubkey : investment.linkedTraderPubkey.toString();
+      const sig = await withdraw(new PublicKey(traderPda), Number(manualPrice));
+      
+      toast.success("Withdrawal successful!", { id: "withdraw" });
+      console.log("Withdraw Sig:", sig);
       refetchInvestments();
-      refetchTraders();
     } catch (err: any) {
-      toast.error(err.message || "Withdraw failed", { id: "withdraw" });
+      toast.error(err.message || "Withdrawal failed", { id: "withdraw" });
     } finally {
-      setSubmitting(false);
+      setWithdrawing(null);
     }
   };
 
@@ -142,9 +150,9 @@ export default function InvestorDashboard() {
   const filteredTraders = traders
     .filter(t => t.publicKey.toLowerCase().includes(search.toLowerCase()) || t.account.traderWallet.toBase58().toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => {
-        const profitA = a.account.lifetimeProfitUsd.toNumber() - a.account.lifetimeLossUsd.toNumber();
-        const profitB = b.account.lifetimeProfitUsd.toNumber() - b.account.lifetimeLossUsd.toNumber();
-        return profitB - profitA;
+      const profitA = a.account.lifetimeProfitUsd.toNumber() - a.account.lifetimeLossUsd.toNumber();
+      const profitB = b.account.lifetimeProfitUsd.toNumber() - b.account.lifetimeLossUsd.toNumber();
+      return profitB - profitA;
     });
 
   return (
@@ -176,30 +184,41 @@ export default function InvestorDashboard() {
       </div>
       {/* My Portfolio Section */}
       <div className="mb-16">
-        <h2 className="text-3xl font-bold mb-8 flex items-center gap-3">
-          <Activity className="text-cyan-400 w-8 h-8" /> Portfolio Performance
-        </h2>
+        <div className="flex justify-between items-center mb-8">
+          <h2 className="text-3xl font-bold flex items-center gap-3">
+            <Activity className="text-cyan-400 w-8 h-8" /> Portfolio Performance
+          </h2>
+          <button 
+            onClick={() => {
+              refetchInvestments();
+              refetchTraders();
+            }}
+            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl text-xs font-bold text-slate-400 hover:text-white transition-all flex items-center gap-2"
+          >
+            <Activity className="w-3 h-3" /> REFRESH DATA
+          </button>
+        </div>
 
         {/* Portfolio Summary */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-            <div className="bg-slate-900/80 border border-slate-800 p-8 rounded-3xl backdrop-blur-xl">
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Total Invested</p>
-                <p className="text-3xl font-black text-white">
-                    ${investments.reduce((acc, inv) => acc + (inv.account.initialDepositUsdValue.toNumber() / 1e6), 0).toFixed(2)}
-                </p>
-            </div>
-            <div className="bg-slate-900/80 border border-slate-800 p-8 rounded-3xl backdrop-blur-xl">
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Current Value</p>
-                <p className="text-3xl font-black text-cyan-400">
-                    ${Object.values(liveStats).reduce((acc, s) => acc + s.currentValue, 0).toFixed(2)}
-                </p>
-            </div>
-            <div className="bg-slate-900/80 border border-slate-800 p-8 rounded-3xl backdrop-blur-xl">
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Net Unrealized P&L</p>
-                <p className={`text-3xl font-black ${Object.values(liveStats).reduce((acc, s) => acc + s.pnl, 0) >= 0 ? "text-green-400" : "text-red-400"}`}>
-                    ${Object.values(liveStats).reduce((acc, s) => acc + s.pnl, 0).toFixed(2)}
-                </p>
-            </div>
+          <div className="bg-slate-900/80 border border-slate-800 p-8 rounded-3xl backdrop-blur-xl">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Total Invested</p>
+            <p className="text-3xl font-black text-white">
+              ${investments.reduce((acc, inv) => acc + (inv.account.initialDepositUsdValue.toNumber() / 1e6), 0).toFixed(2)}
+            </p>
+          </div>
+          <div className="bg-slate-900/80 border border-slate-800 p-8 rounded-3xl backdrop-blur-xl">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Current Value</p>
+            <p className="text-3xl font-black text-cyan-400">
+              ${Object.values(liveStats).reduce((acc, s) => acc + s.currentValue, 0).toFixed(2)}
+            </p>
+          </div>
+          <div className="bg-slate-900/80 border border-slate-800 p-8 rounded-3xl backdrop-blur-xl">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Net Unrealized P&L</p>
+            <p className={`text-3xl font-black ${Object.values(liveStats).reduce((acc, s) => acc + s.pnl, 0) >= 0 ? "text-green-400" : "text-red-400"}`}>
+              ${Object.values(liveStats).reduce((acc, s) => acc + s.pnl, 0).toFixed(2)}
+            </p>
+          </div>
         </div>
 
         {loadingInvestments ? (
@@ -217,8 +236,8 @@ export default function InvestorDashboard() {
               const linkedTrader = traders.find(t => t.publicKey === inv.linkedTraderPubkey);
               const initialUsd = inv.account.initialDepositUsdValue?.toNumber() / 10 ** 6 || 0;
               const currentAsset = Object.keys(linkedTrader?.account?.currentAsset || {})[0]?.toLowerCase() === "usdc" ? "USDC" : "SOL";
-              const traderProfit = linkedTrader 
-                ? (linkedTrader.account.lifetimeProfitUsd.toNumber() - linkedTrader.account.lifetimeLossUsd.toNumber()) / 1e6 
+              const traderProfit = linkedTrader
+                ? (linkedTrader.account.lifetimeProfitUsd.toNumber() - linkedTrader.account.lifetimeLossUsd.toNumber()) / 1e6
                 : 0;
 
               return (
@@ -234,37 +253,118 @@ export default function InvestorDashboard() {
                   </div>
 
                   <div className="mb-6">
-                    <p className="text-xs text-slate-500 mb-1 font-mono truncate">{inv.linkedTraderPubkey}</p>
-                    <h3 className="text-lg font-bold">Signal Vault</h3>
+                    <div className="flex items-center gap-2 mb-1">
+                        <Users className="w-3 h-3 text-slate-500" />
+                        <p className="text-xs text-slate-500 font-mono truncate">
+                            Trader: {linkedTrader ? linkedTrader.account.traderWallet.toBase58() : inv.linkedTraderPubkey}
+                        </p>
+                    </div>
+                    <h3 className="text-lg font-bold">Signal Vault #{inv.publicKey.slice(0, 4)}</h3>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 mb-8">
+                  <div className="grid grid-cols-2 gap-4 mb-6">
                     <div className="p-3 bg-slate-950 rounded-xl border border-slate-800">
-                      <p className="text-[10px] text-slate-500 uppercase font-bold mb-1">Invested</p>
-                      <p className="font-bold text-slate-200">${initialUsd.toFixed(2)}</p>
+                      <p className="text-[10px] text-slate-500 uppercase font-bold mb-1">Gross Equity</p>
+                      <p className="font-bold text-slate-200">
+                        {liveStats[inv.publicKey] ? `$${liveStats[inv.publicKey].grossValue.toFixed(2)}` : "..."}
+                      </p>
                     </div>
-                    <div className="p-3 bg-slate-950 rounded-xl border border-slate-800">
-                      <p className="text-[10px] text-slate-500 uppercase font-bold mb-1">Current Value</p>
+                    <div className="p-3 bg-slate-950 rounded-xl border border-cyan-500/20">
+                      <p className="text-[10px] text-cyan-500 uppercase font-bold mb-1">Withdraw Value</p>
                       <p className="font-bold text-cyan-400">
                         {liveStats[inv.publicKey] ? `$${liveStats[inv.publicKey].currentValue.toFixed(2)}` : "..."}
                       </p>
                     </div>
                   </div>
 
-                  <div className="mb-8 p-4 bg-slate-950 rounded-2xl border border-slate-800 flex justify-between items-center">
-                    <div>
-                        <p className="text-[10px] text-slate-500 uppercase font-bold mb-0.5">Your P&L</p>
-                        <p className={`text-xl font-black ${liveStats[inv.publicKey]?.pnl >= 0 ? "text-green-400" : "text-red-400"}`}>
-                            {liveStats[inv.publicKey] ? `${liveStats[inv.publicKey].pnl >= 0 ? "+" : ""}$${liveStats[inv.publicKey].pnl.toFixed(2)}` : "..."}
-                        </p>
+                  <div className="flex justify-between items-center px-4 py-2 bg-slate-950/50 rounded-xl border border-slate-800/50 mb-6 group relative">
+                    <div className="flex flex-col">
+                        <span className="text-[9px] text-slate-500 uppercase font-bold tracking-tighter">Vault Ownership</span>
+                        <span className="text-[10px] font-bold text-cyan-500/80">
+                            {liveStats[inv.publicKey]?.ownershipPercentage?.toFixed(4) || "0.0000"}%
+                        </span>
                     </div>
-                    <div className={`px-3 py-1 rounded-lg text-xs font-bold ${liveStats[inv.publicKey]?.pnlPercent >= 0 ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"}`}>
+                    <div className="text-right">
+                        <span className="text-[9px] text-slate-500 uppercase font-bold tracking-tighter block">Shares Held</span>
+                        <span className="text-xs font-mono text-slate-300">
+                        {liveStats[inv.publicKey]?.shares?.toFixed(4) || "0.0000"}
+                        </span>
+                    </div>
+                    
+                    {/* Debug Tooltip */}
+                    <div className="absolute bottom-full left-0 w-full mb-2 p-3 bg-slate-900 border border-slate-800 rounded-xl z-30 hidden group-hover:block shadow-2xl pointer-events-none">
+                        <p className="text-[8px] font-bold text-slate-600 uppercase mb-1">Technical ID</p>
+                        <p className="text-[8px] font-mono text-slate-400 break-all">{inv.publicKey}</p>
+                    </div>
+                  </div>
+
+                  <div className="mb-8 p-4 bg-slate-950 rounded-2xl border border-slate-800">
+                    <div className="flex justify-between items-center mb-4">
+                      <div>
+                        <p className="text-[10px] text-slate-500 uppercase font-bold mb-0.5">Total Unrealized P&L</p>
+                        <p className={`text-2xl font-black ${liveStats[inv.publicKey]?.pnl >= 0 ? "text-green-400" : "text-red-400"}`}>
+                          {liveStats[inv.publicKey] ? `${liveStats[inv.publicKey].pnl >= 0 ? "+" : ""}$${liveStats[inv.publicKey].pnl.toFixed(2)}` : "..."}
+                        </p>
+                        <p className="text-[9px] text-slate-600 font-bold mt-1">
+                            Calculated @ ${Number(manualPrice).toFixed(2)} / SOL
+                        </p>
+                      </div>
+                      <div className={`px-3 py-1 rounded-lg text-xs font-bold ${liveStats[inv.publicKey]?.pnlPercent >= 0 ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"}`}>
                         {liveStats[inv.publicKey] ? `${liveStats[inv.publicKey].pnlPercent >= 0 ? "+" : ""}${liveStats[inv.publicKey].pnlPercent.toFixed(2)}%` : "..."}
+                      </div>
+                    </div>
+                    
+                    <div className="pt-3 border-t border-slate-800 space-y-2">
+                        <div className="flex justify-between text-[9px] font-bold uppercase tracking-wider">
+                          <span className="text-slate-500">Initial Deposit</span>
+                          <span className="text-slate-300">${initialUsd.toFixed(2)}</span>
+                        </div>
+                        {liveStats[inv.publicKey]?.pnl > 0 && (
+                            <>
+                                <div className="flex justify-between text-[9px] font-bold uppercase tracking-wider">
+                                <span className="text-slate-500">Gross Profit</span>
+                                <span className="text-green-400">
+                                    +${(liveStats[inv.publicKey].grossValue - initialUsd).toFixed(2)}
+                                </span>
+                                </div>
+                                <div className="flex justify-between text-[9px] font-bold uppercase tracking-wider">
+                                <span className="text-slate-500">Trader Commission</span>
+                                <span className="text-red-400">
+                                    -${(liveStats[inv.publicKey].grossValue - liveStats[inv.publicKey].currentValue).toFixed(2)}
+                                </span>
+                                </div>
+                            </>
+                        )}
+                    </div>
+
+                    {/* Step-by-Step Breakdown Box */}
+                    <div className="mt-6 p-4 bg-black/40 rounded-xl border border-slate-800/50 font-mono text-[9px] text-slate-400 leading-relaxed">
+                        <p className="text-cyan-500 font-bold mb-2 uppercase tracking-tighter"># PnL Calculation Breakdown</p>
+                        {liveStats[inv.publicKey] ? (
+                            <div className="space-y-1">
+                                <p>1. Total Vault Assets:</p>
+                                <p className="pl-3 text-slate-500">({liveStats[inv.publicKey].vaultSol.toFixed(4)} SOL * ${Number(manualPrice).toFixed(2)}) + {liveStats[inv.publicKey].vaultUsdc.toFixed(2)} USDC = <span className="text-slate-200">${((liveStats[inv.publicKey].vaultSol * Number(manualPrice)) + liveStats[inv.publicKey].vaultUsdc).toFixed(2)}</span></p>
+                                
+                                <p>2. Your Ownership %:</p>
+                                <p className="pl-3 text-slate-500">{liveStats[inv.publicKey].shares.toFixed(4)} / {liveStats[inv.publicKey].totalShares.toFixed(4)} total shares = <span className="text-slate-200">{liveStats[inv.publicKey].ownershipPercentage.toFixed(4)}%</span></p>
+                                
+                                <p>3. Your Gross Equity:</p>
+                                <p className="pl-3 text-slate-500">Step 1 * Step 2 = <span className="text-slate-200">${liveStats[inv.publicKey].grossValue.toFixed(2)}</span></p>
+                                
+                                <p>4. Net Value (After {linkedTrader?.account?.commissionPercentage / 100}% Comm):</p>
+                                <p className="pl-3 text-slate-500">Equity - Commission on Profit = <span className="text-cyan-400">${liveStats[inv.publicKey].currentValue.toFixed(2)}</span></p>
+                                
+                                <p>5. Final PnL:</p>
+                                <p className="pl-3 text-slate-500">Net Value - ${initialUsd.toFixed(2)} (Initial) = <span className={liveStats[inv.publicKey].pnl >= 0 ? "text-green-400" : "text-red-400"}>${liveStats[inv.publicKey].pnl.toFixed(2)}</span></p>
+                            </div>
+                        ) : (
+                            <p className="animate-pulse">Loading live contract data...</p>
+                        )}
                     </div>
                   </div>
 
                   <button
-                    onClick={() => handleWithdraw(inv.linkedTraderPubkey)}
+                    onClick={() => handleWithdraw(inv)}
                     disabled={submitting}
                     className="w-full py-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 font-bold rounded-xl border border-red-500/30 transition-all text-sm flex items-center justify-center gap-2"
                   >
@@ -331,9 +431,9 @@ export default function InvestorDashboard() {
                 <div key={trader.publicKey} className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden hover:border-cyan-500/30 transition-all group flex flex-col h-full shadow-2xl relative">
                   <Link href={`/trader/${trader.account.traderWallet.toBase58()}`} className="flex-1">
                     {index < 3 && (
-                       <div className="absolute top-0 right-8 bg-amber-500/10 text-amber-500 px-3 py-1 rounded-b-xl text-[10px] font-bold uppercase tracking-widest border border-t-0 border-amber-500/20">
-                           Top Trader
-                       </div>
+                      <div className="absolute top-0 right-8 bg-amber-500/10 text-amber-500 px-3 py-1 rounded-b-xl text-[10px] font-bold uppercase tracking-widest border border-t-0 border-amber-500/20">
+                        Top Trader
+                      </div>
                     )}
                     <div className="p-8">
                       <div className="flex justify-between items-start mb-6">

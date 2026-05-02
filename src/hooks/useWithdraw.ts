@@ -35,12 +35,16 @@ export function useWithdraw() {
             const { getSolPrice } = await import("../lib/price");
             priceValue = await getSolPrice();
         }
+
+        if (!priceValue || priceValue <= 0) {
+            throw new Error("Unable to fetch a valid SOL price for withdrawal. Please try again in a few seconds.");
+        }
         const priceBN = new anchor.BN(Math.floor(priceValue * 1e6));
 
         try {
-            const { 
-                createAssociatedTokenAccountInstruction, 
-                getAssociatedTokenAddressSync 
+            const {
+                createAssociatedTokenAccountInstruction,
+                getAssociatedTokenAddressSync
             } = await import("@solana/spl-token");
             const { Transaction } = await import("@solana/web3.js");
 
@@ -77,14 +81,14 @@ export function useWithdraw() {
                     tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
                 })
                 .instruction();
-            
+
             tx.add(withdrawIx);
 
             const signature = await program.provider.sendAndConfirm!(tx);
             return signature;
         } catch (err: any) {
             console.error("Withdraw Error Details:", err);
-            
+
             // Handle specific case where transaction actually succeeded but RPC retried
             if (err.message?.includes("already been processed")) {
                 const { default: toast } = await import("react-hot-toast");

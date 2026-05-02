@@ -41,7 +41,7 @@ export default function TraderDashboard() {
       }
     };
     fetchPrice();
-    const interval = setInterval(fetchPrice, 30000); // Update every 30s
+    const interval = setInterval(fetchPrice, 5000); // Live price updates every 5s
     return () => clearInterval(interval);
   }, []);
 
@@ -238,11 +238,20 @@ export default function TraderDashboard() {
           <p className="text-slate-400 font-mono text-sm">{publicKey.toBase58()}</p>
         </div>
         <div className="flex gap-4">
-          <div className="bg-slate-950 border border-slate-800 px-6 py-3 rounded-2xl">
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Wallet Balance</p>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              <p className="text-xl font-black text-white">{walletBalance?.toFixed(3) || "0.000"} <span className="text-slate-500 text-sm italic">SOL</span></p>
+          <div className="bg-slate-950 border border-slate-800 px-6 py-3 rounded-2xl flex items-center gap-6">
+            <div>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Wallet Balance</p>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                <p className="text-xl font-black text-white">{walletBalance?.toFixed(3) || "0.000"} <span className="text-slate-500 text-sm italic tracking-tighter">SOL</span></p>
+              </div>
+            </div>
+            <div className="w-px h-8 bg-slate-800" />
+            <div>
+              <p className="text-[10px] font-bold text-cyan-500 uppercase tracking-widest mb-1">Active Strategy</p>
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${currentAsset === 'SOL' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'}`}>
+                {currentAsset} MODE
+              </span>
             </div>
           </div>
           <button
@@ -325,24 +334,32 @@ export default function TraderDashboard() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8">
+            <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 blur-3xl rounded-full -mr-16 -mt-16 group-hover:bg-cyan-500/10 transition-all" />
               <h3 className="text-slate-400 text-sm font-medium mb-1 flex items-center gap-2">
-                Live Unrealized P&L
+                Live Unrealized Strategy P&L
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
               </h3>
-              <div className={`text-3xl font-black mb-4 ${unrealizedPnl >= 0 ? "text-green-400" : "text-red-400"}`}>
-                {unrealizedPnl >= 0 ? "+" : ""}${unrealizedPnl.toFixed(2)}
-              </div>
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <p className="text-xs text-slate-500 uppercase">Current Value</p>
-                  <p className="text-lg font-bold text-white">${liveVaultValueUsd.toFixed(2)}</p>
+              <div className="flex items-baseline gap-2 mb-4">
+                <div className={`text-4xl font-black ${unrealizedPnl >= 0 ? "text-green-400" : "text-red-400"}`}>
+                    {unrealizedPnl >= 0 ? "+" : ""}${unrealizedPnl.toFixed(2)}
                 </div>
-                <div className="flex-1">
-                  <p className="text-xs text-slate-500 uppercase">Initial Deposits</p>
-                  <p className="text-lg font-bold text-slate-400">${hasActiveInvestment ? initialVaultValueUsd.toFixed(2) : "0.00"}</p>
+                <div className={`text-sm font-bold ${unrealizedPnl >= 0 ? "text-green-500/60" : "text-red-500/60"}`}>
+                    ({hasActiveInvestment ? ((unrealizedPnl / initialVaultValueUsd) * 100).toFixed(2) : "0.00"}%)
                 </div>
               </div>
+              <div className="flex gap-6 py-4 border-t border-slate-800/50">
+                <div className="flex-1">
+                  <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1">Current Holding Value</p>
+                  <p className="text-xl font-black text-white">${liveVaultValueUsd.toFixed(2)}</p>
+                </div>
+                <div className="w-px h-8 bg-slate-800 self-center" />
+                <div className="flex-1">
+                  <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1">Total Capital Invested</p>
+                  <p className="text-xl font-bold text-slate-400">${hasActiveInvestment ? initialVaultValueUsd.toFixed(2) : "0.00"}</p>
+                </div>
+              </div>
+              <p className="text-[10px] text-slate-600 mt-2 italic">* Values calculated using real-time Oracle prices</p>
             </div>
 
             <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8">
