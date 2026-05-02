@@ -64,33 +64,6 @@ export default function Home() {
               Join the first non-custodial copy-trading protocol on Solana.
               Follow elite traders with sub-second execution and institutional-grade security.
             </p>
-
-            <div className="flex flex-col sm:flex-row gap-4">
-              {!publicKey ? (
-                <div className="group relative bg-white text-black px-10 py-5 rounded-2xl font-black text-lg hover:scale-105 transition-all shadow-2xl shadow-white/10 flex items-center justify-center gap-3 cursor-pointer">
-                  CONNECT WALLET TO START
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </div>
-              ) : (
-                <>
-                  <Link
-                    href="/investor"
-                    className="group px-10 py-5 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-2xl font-black text-white shadow-xl shadow-cyan-500/20 hover:shadow-cyan-500/40 hover:-translate-y-1 transition-all flex items-center justify-center gap-3 uppercase tracking-tighter"
-                  >
-                    Start Investing
-                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                  </Link>
-                  <Link
-                    href="/trader"
-                    className="group px-10 py-5 bg-slate-900 border border-slate-800 rounded-2xl font-black text-slate-200 hover:bg-slate-800 hover:-translate-y-1 transition-all flex items-center justify-center gap-3 uppercase tracking-tighter"
-                  >
-                    <BarChart3 className="w-5 h-5" />
-                    Become a Trader
-                  </Link>
-                </>
-              )}
-            </div>
-
             <div className="mt-16 flex items-center gap-8 grayscale opacity-50 overflow-hidden">
               <div className="flex items-center gap-2 font-black italic text-2xl tracking-tighter">SOLANA</div>
               <div className="flex items-center gap-2 font-black italic text-2xl tracking-tighter uppercase">Pyth</div>
