@@ -64,11 +64,22 @@ export default function TraderDetailPage() {
           const requestedAmount = Number(amount);
           const lamports = BigInt(Math.floor(requestedAmount * 1e9));
 
+          toast.loading("Preparing funds (Wrapping SOL)...", { id: "deposit" });
+          
+          // 1. Ensure user has enough WSOL by wrapping native SOL
+          try {
+              await wrap(requestedAmount);
+          } catch (wrapErr: any) {
+              console.error("Wrapping failed:", wrapErr);
+              throw new Error("Failed to wrap SOL. Please ensure you have enough balance.");
+          }
+
           toast.loading("Processing deposit...", { id: "deposit" });
           await deposit(traderPubkey, lamports);
           toast.success("Deposit successful!", { id: "deposit" });
           refetch();
         } catch (err: any) {
+          console.error("Deposit Error:", err);
           toast.error(err.message || "Deposit failed", { id: "deposit" });
         } finally {
           setSubmitting(false);

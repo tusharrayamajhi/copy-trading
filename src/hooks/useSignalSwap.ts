@@ -5,6 +5,7 @@ import { WSOL_MINT, USDC_MINT, PLATFORM_CONFIG_PDA, PLATFORM_BANK_SOL, PLATFORM_
 import { PublicKey } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { getATA } from "../lib/ata";
+import toast from "react-hot-toast";
 
 export function useSignalSwap() {
     const program = useProgram();
@@ -22,18 +23,14 @@ export function useSignalSwap() {
 
         let amountIn = new anchor.BN(0);
 
-        try {
-            if (targetAsset === "Usdc") {
-                const solBalance = await program.provider.connection.getTokenAccountBalance(vaultSolAta);
-                amountIn = new anchor.BN(solBalance.value.amount);
-                if (amountIn.eqn(0)) throw new Error("No SOL in vault to swap");
-            } else {
-                const usdcBalance = await program.provider.connection.getTokenAccountBalance(vaultUsdcAta);
-                amountIn = new anchor.BN(usdcBalance.value.amount);
-                if (amountIn.eqn(0)) throw new Error("No USDC in vault to swap");
-            }
-        } catch (e: any) {
-            throw new Error("Vault is empty. Please wait for investor deposits before trading.");
+        if (targetAsset === "Usdc") {
+            const solBalance = await program.provider.connection.getTokenAccountBalance(vaultSolAta);
+            amountIn = new anchor.BN(solBalance.value.amount);
+            if (amountIn.eqn(0)) throw new Error("No SOL in vault to swap. Please wait for investor SOL deposits.");
+        } else {
+            const usdcBalance = await program.provider.connection.getTokenAccountBalance(vaultUsdcAta);
+            amountIn = new anchor.BN(usdcBalance.value.amount);
+            if (amountIn.eqn(0)) throw new Error("No USDC in vault to swap. Shift to USDC first or wait for trades.");
         }
 
         try {
@@ -66,6 +63,13 @@ export function useSignalSwap() {
             return tx;
         } catch (err: any) {
             console.error("Swap Error Details:", err);
+            
+            // Handle specific case where transaction actually succeeded but RPC retried
+            if (err.message?.includes("already been processed")) {
+                toast.success("Transaction likely succeeded! Refreshing status...");
+                return "ALREADY_PROCESSED";
+            }
+
             const logs = err.logs || (err.getLogs ? err.getLogs() : null);
             if (logs) {
                 console.error("Transaction Logs:", logs);

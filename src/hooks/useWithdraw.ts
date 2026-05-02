@@ -38,7 +38,31 @@ export function useWithdraw() {
         const priceBN = new anchor.BN(Math.floor(priceValue * 1e6));
 
         try {
-            const tx = await program.methods
+            const { 
+                createAssociatedTokenAccountInstruction, 
+                getAssociatedTokenAddressSync 
+            } = await import("@solana/spl-token");
+            const { Transaction } = await import("@solana/web3.js");
+
+            const investorReceiveAta = getAssociatedTokenAddressSync(receivingMint, publicKey);
+            const tx = new Transaction();
+
+            // Check if the receive ATA exists
+            const accountInfo = await program.provider.connection.getAccountInfo(investorReceiveAta);
+            if (!accountInfo) {
+                console.log("Creating receive ATA for investor...");
+                tx.add(
+                    createAssociatedTokenAccountInstruction(
+                        publicKey,
+                        investorReceiveAta,
+                        publicKey,
+                        receivingMint
+                    )
+                );
+            }
+
+            // Build the withdraw instruction
+            const withdrawIx = await program.methods
                 .withdrawFunds(priceBN)
                 .accounts({
                     investor: publicKey,
@@ -49,14 +73,25 @@ export function useWithdraw() {
                     traderVaultSharesMint: sharesMint,
                     traderVaultTokenSol: getATA(WSOL_MINT, traderVault, true),
                     traderVaultTokenUsdc: getATA(USDC_MINT, traderVault, true),
-                    investorReceiveAta: getATA(receivingMint, publicKey),
+                    investorReceiveAta: investorReceiveAta,
                     tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
                 })
-                .rpc();
+                .instruction();
+            
+            tx.add(withdrawIx);
 
-            return tx;
+            const signature = await program.provider.sendAndConfirm!(tx);
+            return signature;
         } catch (err: any) {
             console.error("Withdraw Error Details:", err);
+            
+            // Handle specific case where transaction actually succeeded but RPC retried
+            if (err.message?.includes("already been processed")) {
+                const { default: toast } = await import("react-hot-toast");
+                toast.success("Withdrawal likely succeeded! Refreshing dashboard...");
+                return "ALREADY_PROCESSED";
+            }
+
             const logs = err.logs || (err.getLogs ? err.getLogs() : null);
             if (logs) {
                 console.error("Transaction Logs:", logs);
