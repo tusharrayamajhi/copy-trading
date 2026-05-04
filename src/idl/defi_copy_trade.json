@@ -138,7 +138,27 @@
                     "isSigner": false
                 },
                 {
+                    "name": "traderVaultTokenUsdc",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
                     "name": "traderVaultSharesMint",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
+                    "name": "platformConfig",
+                    "isMut": false,
+                    "isSigner": false
+                },
+                {
+                    "name": "platformBankSol",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
+                    "name": "platformBankUsdc",
                     "isMut": true,
                     "isSigner": false
                 },
@@ -280,6 +300,31 @@
                 },
                 {
                     "name": "investorReceiveAta",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
+                    "name": "platformConfig",
+                    "isMut": false,
+                    "isSigner": false
+                },
+                {
+                    "name": "platformBankSol",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
+                    "name": "platformBankUsdc",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
+                    "name": "traderReceiveSolAta",
+                    "isMut": true,
+                    "isSigner": false
+                },
+                {
+                    "name": "platformFeeReceiveSolAta",
                     "isMut": true,
                     "isSigner": false
                 },

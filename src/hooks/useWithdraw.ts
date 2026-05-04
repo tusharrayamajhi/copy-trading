@@ -2,12 +2,13 @@
 import { useProgram } from "../lib/program";
 import { useWallet } from "@solana/wallet-adapter-react";
 import {
-    getTraderAccountPDA, getTraderVaultPDA, getInvestorAccountPDA
+    getTraderAccountPDA, getTraderVaultPDA, getInvestorAccountPDA, getPlatformConfigPDA
 } from "../lib/pdas";
 import { getATA } from "../lib/ata";
 import { PublicKey, SystemProgram } from "@solana/web3.js";
-import { WSOL_MINT, USDC_MINT } from "../lib/constants";
+import { WSOL_MINT, USDC_MINT, PLATFORM_BANK_SOL, PLATFORM_BANK_USDC } from "../lib/constants";
 import * as anchor from "@coral-xyz/anchor";
+import { toast } from "react-hot-toast";
 
 export function useWithdraw() {
     const program = useProgram();
@@ -16,65 +17,75 @@ export function useWithdraw() {
     return async (traderAccountPDA: PublicKey, priceOverride?: number) => {
         if (!program || !publicKey) throw new Error("Wallet not connected");
 
-        const traderData = await (program as any).account.traderAccount.fetch(traderAccountPDA);
-        const traderWallet = traderData.traderWallet as PublicKey;
-
-
-        const [traderAccount] = getTraderAccountPDA(traderWallet);
-        const [traderVault] = getTraderVaultPDA(traderWallet);
-        const [investorAccount] = getInvestorAccountPDA(publicKey, traderAccountPDA);
-
-        const sharesMint = traderData.traderVaultSharesMint as PublicKey;
-
-        // Determine what asset we are receiving (what the vault currently holds)
-        const currentAsset = Object.keys(traderData.currentAsset || {})[0]?.toLowerCase() === "usdc" ? "usdc" : "sol";
-        const receivingMint = currentAsset === "usdc" ? USDC_MINT : WSOL_MINT;
-
-        let priceValue = priceOverride;
-        
-        // Wait and retry for up to 10 seconds if price is missing or 0
-        let attempts = 0;
-        while ((!priceValue || priceValue <= 0) && attempts < 10) {
-            console.log(`[useWithdraw] Price is ${priceValue}, waiting for live market data (Attempt ${attempts + 1}/10)...`);
-            const { getSolPrice } = await import("../lib/price");
-            priceValue = await getSolPrice();
-            
-            if (!priceValue || priceValue <= 0) {
-                await new Promise(r => setTimeout(r, 1000)); // Wait 1 second before retry
-                attempts++;
-            }
-        }
-
-        if (!priceValue || priceValue <= 0) {
-            throw new Error("Unable to fetch a valid SOL price for withdrawal. Please try again in a few seconds.");
-        }
-        const priceBN = new anchor.BN(Math.floor(priceValue * 1e6));
+        const loadingToast = toast.loading("Preparing withdrawal...");
 
         try {
+            const traderData = await (program as any).account.traderAccount.fetch(traderAccountPDA);
+            const traderWallet = traderData.traderWallet as PublicKey;
+            
+            // Get Platform Config to find fee recipient
+            const [platformConfigPDA] = getPlatformConfigPDA();
+            const platformConfigData = await (program as any).account.platformConfig.fetch(platformConfigPDA);
+            const platformFeeRecipient = platformConfigData.platformFeeRecipient as PublicKey;
+
+            const [traderAccount] = getTraderAccountPDA(traderWallet);
+            const [traderVault] = getTraderVaultPDA(traderWallet);
+            const [investorAccount] = getInvestorAccountPDA(publicKey, traderAccountPDA);
+
+            const sharesMint = traderData.traderVaultSharesMint as PublicKey;
+
+            // We ALWAYS withdraw in SOL (WSOL) as requested, which we then unwrap
+            const receivingMint = WSOL_MINT;
+
+            let priceValue = priceOverride;
+            
+            // Wait and retry for up to 10 seconds if price is missing or 0
+            let attempts = 0;
+            while ((!priceValue || priceValue <= 0) && attempts < 10) {
+                const { getSolPrice } = await import("../lib/price");
+                priceValue = await getSolPrice();
+                if (!priceValue || priceValue <= 0) {
+                    await new Promise(r => setTimeout(r, 1000));
+                    attempts++;
+                }
+            }
+
+            if (!priceValue || priceValue <= 0) {
+                toast.dismiss(loadingToast);
+                throw new Error("Unable to fetch a valid SOL price for withdrawal.");
+            }
+            const priceBN = new anchor.BN(Math.floor(priceValue * 1e6));
+
             const {
                 createAssociatedTokenAccountInstruction,
-                getAssociatedTokenAddressSync
+                getAssociatedTokenAddressSync,
+                createCloseAccountInstruction
             } = await import("@solana/spl-token");
             const { Transaction } = await import("@solana/web3.js");
 
             const investorReceiveAta = getAssociatedTokenAddressSync(receivingMint, publicKey);
+            const traderReceiveAta = getAssociatedTokenAddressSync(receivingMint, traderWallet);
+            const platformReceiveAta = getAssociatedTokenAddressSync(receivingMint, platformFeeRecipient);
+
             const tx = new Transaction();
 
-            // Check if the receive ATA exists
-            const accountInfo = await program.provider.connection.getAccountInfo(investorReceiveAta);
-            if (!accountInfo) {
-                console.log("Creating receive ATA for investor...");
-                tx.add(
-                    createAssociatedTokenAccountInstruction(
-                        publicKey,
-                        investorReceiveAta,
-                        publicKey,
-                        receivingMint
-                    )
-                );
+            // 1. Ensure ATAs exist for all recipients (Investor, Trader, Platform)
+            const recipients = [
+                { wallet: publicKey, ata: investorReceiveAta },
+                { wallet: traderWallet, ata: traderReceiveAta },
+                { wallet: platformFeeRecipient, ata: platformReceiveAta }
+            ];
+
+            for (const rec of recipients) {
+                const info = await program.provider.connection.getAccountInfo(rec.ata);
+                if (!info) {
+                    tx.add(createAssociatedTokenAccountInstruction(publicKey, rec.ata, rec.wallet, receivingMint));
+                }
             }
 
-            // Build the withdraw instruction
+            toast.loading("Calculating profit & fees...", { id: loadingToast });
+
+            // 2. Build the withdraw instruction
             const withdrawIx = await program.methods
                 .withdrawFunds(priceBN)
                 .accounts({
@@ -87,30 +98,43 @@ export function useWithdraw() {
                     traderVaultTokenSol: getATA(WSOL_MINT, traderVault, true),
                     traderVaultTokenUsdc: getATA(USDC_MINT, traderVault, true),
                     investorReceiveAta: investorReceiveAta,
+                    platformConfig: platformConfigPDA,
+                    platformBankSol: PLATFORM_BANK_SOL,
+                    platformBankUsdc: PLATFORM_BANK_USDC,
+                    traderReceiveSolAta: traderReceiveAta,
+                    platformFeeReceiveSolAta: platformReceiveAta,
                     tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
                 })
                 .instruction();
 
             tx.add(withdrawIx);
 
-            const signature = await program.provider.sendAndConfirm!(tx);
-            return signature;
-        } catch (err: any) {
-            console.error("Withdraw Error Details:", err);
-
-            // Handle specific case where transaction actually succeeded but RPC retried
-            if (err.message?.includes("already been processed")) {
-                const { default: toast } = await import("react-hot-toast");
-                toast.success("Withdrawal likely succeeded! Refreshing dashboard...");
-                return "ALREADY_PROCESSED";
+            // 3. UNWRAP: Close WSOL ATAs to send native SOL
+            // This satisfies the "send sol not wsol" requirement
+            tx.add(createCloseAccountInstruction(investorReceiveAta, publicKey, publicKey));
+            
+            // Only unwrap trader/platform if they are not the same as the investor (unlikely but safe)
+            if (!traderWallet.equals(publicKey)) {
+                tx.add(createCloseAccountInstruction(traderReceiveAta, traderWallet, publicKey));
+            }
+            if (!platformFeeRecipient.equals(publicKey) && !platformFeeRecipient.equals(traderWallet)) {
+                tx.add(createCloseAccountInstruction(platformReceiveAta, platformFeeRecipient, publicKey));
             }
 
-            const logs = err.logs || (err.getLogs ? err.getLogs() : null);
-            if (logs) {
-                console.error("Transaction Logs:", logs);
-                throw new Error(`Simulation failed: ${err.message}. Logs: ${logs.join('\n')}`);
+            toast.loading("Executing transaction (SOL conversion active)...", { id: loadingToast });
+
+            const signature = await program.provider.sendAndConfirm!(tx);
+            
+            toast.success("Withdrawal Successful! SOL sent to your wallet.", { id: loadingToast });
+            return signature;
+        } catch (err: any) {
+            toast.error(err.message || "Withdrawal failed", { id: loadingToast });
+            console.error("Withdraw Error Details:", err);
+
+            if (err.message?.includes("already been processed")) {
+                return "ALREADY_PROCESSED";
             }
             throw err;
         }
     };
-}
+}

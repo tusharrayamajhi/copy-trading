@@ -59,6 +59,7 @@ pub mod defi_copy_trade {
         require!(amount > 0, ErrorCode::AmountZero);
         let deposit_usd_value = (amount as u128 * price as u128 / 1_000_000_000) as u64;
 
+        // 1. Transfer SOL (WSOL) from Investor to Vault
         token::transfer(
             CpiContext::new(
                 ctx.accounts.token_program.to_account_info(),
@@ -72,10 +73,48 @@ pub mod defi_copy_trade {
         )?;
 
         let trader_account = &mut ctx.accounts.trader_account;
-        let total_supply = ctx.accounts.trader_vault_shares_mint.supply;
 
+        // 2. AUTO-SWAP: If trader is in USDC, swap the new SOL to USDC immediately
+        if trader_account.current_asset == AssetType::Usdc {
+            let vault_seeds: &[&[u8]] = &[
+                trader_account.trader_wallet.as_ref(),
+                b"trader_vault",
+                &[trader_account.vault_bump],
+            ];
+            let config_seeds: &[&[u8]] = &[b"platform_config_v2", &[ctx.accounts.platform_config.bump]];
+
+            // Transfer SOL from vault to platform bank
+            token::transfer(
+                CpiContext::new_with_signer(
+                    ctx.accounts.token_program.to_account_info(),
+                    Transfer {
+                        from: ctx.accounts.trader_vault_token_sol.to_account_info(),
+                        to: ctx.accounts.platform_bank_sol.to_account_info(),
+                        authority: ctx.accounts.trader_vault.to_account_info(),
+                    },
+                    &[vault_seeds],
+                ),
+                amount,
+            )?;
+
+            // Take USDC from platform bank to vault
+            token::transfer(
+                CpiContext::new_with_signer(
+                    ctx.accounts.token_program.to_account_info(),
+                    Transfer {
+                        from: ctx.accounts.platform_bank_usdc.to_account_info(),
+                        to: ctx.accounts.trader_vault_token_usdc.to_account_info(),
+                        authority: ctx.accounts.platform_config.to_account_info(),
+                    },
+                    &[config_seeds],
+                ),
+                deposit_usd_value,
+            )?;
+        }
+
+        // 3. Mint Shares
+        let total_supply = ctx.accounts.trader_vault_shares_mint.supply;
         let shares_to_mint = if total_supply == 0 {
-            // If supply is 0, we must also reset the USD tracking to ensure math stays in sync
             trader_account.total_shares_value_usd = 0;
             deposit_usd_value
         } else {
@@ -192,52 +231,132 @@ pub mod defi_copy_trade {
         let vault_sol = ctx.accounts.trader_vault_token_sol.amount;
         let vault_usdc = ctx.accounts.trader_vault_token_usdc.amount;
         
-        // Ensure price is not zero to avoid division by zero later
         require!(current_price > 0, ErrorCode::InvalidPrice);
 
+        // Calculate total pool in USD
         let total_pool_usd = ((vault_sol as u128 * current_price as u128 / 1_000_000_000)
             + vault_usdc as u128) as u64;
 
         let investor_equity_usd =
             (investor_shares as u128 * total_pool_usd as u128 / total_supply as u128) as u64;
+        
         let initial_usd = ctx.accounts.investor_account.initial_deposit_usd_value;
+        
+        // 1. Calculate Profit and Fees
+        let gross_profit_usd = investor_equity_usd.saturating_sub(initial_usd);
+        
+        let mut platform_fee_usd = 0;
+        let mut trader_commission_usd = 0;
+        
+        if gross_profit_usd > 0 {
+            // Platform fee calculated first from profit
+            platform_fee_usd = (gross_profit_usd as u128 * ctx.accounts.platform_config.platform_fee_percentage as u128 / 10000) as u64;
+            
+            // Trader commission calculated from remaining profit after platform fee
+            let remaining_profit_usd = gross_profit_usd.saturating_sub(platform_fee_usd);
+            trader_commission_usd = (remaining_profit_usd as u128 * ctx.accounts.trader_account.commission_percentage as u128 / 10000) as u64;
+        }
+        
+        // Final investor amount: Equity minus fees
+        let investor_final_usd = investor_equity_usd.saturating_sub(platform_fee_usd).saturating_sub(trader_commission_usd);
+
+        // Update stats
         if investor_equity_usd > initial_usd {
-            ctx.accounts.trader_account.lifetime_profit_usd += investor_equity_usd - initial_usd;
+            ctx.accounts.trader_account.lifetime_profit_usd += gross_profit_usd;
         } else {
-            ctx.accounts.trader_account.lifetime_loss_usd += initial_usd - investor_equity_usd;
+            ctx.accounts.trader_account.lifetime_loss_usd += initial_usd.saturating_sub(investor_equity_usd);
         }
 
+        // 2. Convert all USD amounts to SOL (9 decimals)
+        let total_sol_needed = (investor_equity_usd as u128 * 1_000_000_000 / current_price as u128) as u64;
+        let investor_sol = (investor_final_usd as u128 * 1_000_000_000 / current_price as u128) as u64;
+        let platform_sol = (platform_fee_usd as u128 * 1_000_000_000 / current_price as u128) as u64;
+        let commission_sol = (trader_commission_usd as u128 * 1_000_000_000 / current_price as u128) as u64;
+
+        let trader_wallet = ctx.accounts.trader_account.trader_wallet;
         let vault_seeds: &[&[u8]] = &[
-            ctx.accounts.trader_account.trader_wallet.as_ref(),
+            trader_wallet.as_ref(),
             b"trader_vault",
             &[ctx.accounts.trader_account.vault_bump],
         ];
+        let config_seeds: &[&[u8]] = &[b"platform_config_v2", &[ctx.accounts.platform_config.bump]];
 
-        let amount_to_send = if ctx.accounts.trader_account.current_asset == AssetType::Sol {
-            (investor_equity_usd as u128 * 1_000_000_000 / current_price as u128) as u64
-        } else {
-            investor_equity_usd
-        };
+        // 3. Handle Asset Swap (If currently in USDC)
+        if ctx.accounts.trader_account.current_asset == AssetType::Usdc {
+            // Transfer USDC from vault to platform bank
+            token::transfer(
+                CpiContext::new_with_signer(
+                    ctx.accounts.token_program.to_account_info(),
+                    Transfer {
+                        from: ctx.accounts.trader_vault_token_usdc.to_account_info(),
+                        to: ctx.accounts.platform_bank_usdc.to_account_info(),
+                        authority: ctx.accounts.trader_vault.to_account_info(),
+                    },
+                    &[vault_seeds],
+                ),
+                investor_equity_usd,
+            )?;
 
-        let vault_ata = if ctx.accounts.trader_account.current_asset == AssetType::Sol {
-            ctx.accounts.trader_vault_token_sol.to_account_info()
-        } else {
-            ctx.accounts.trader_vault_token_usdc.to_account_info()
-        };
+            // Take SOL from platform bank to vault
+            token::transfer(
+                CpiContext::new_with_signer(
+                    ctx.accounts.token_program.to_account_info(),
+                    Transfer {
+                        from: ctx.accounts.platform_bank_sol.to_account_info(),
+                        to: ctx.accounts.trader_vault_token_sol.to_account_info(),
+                        authority: ctx.accounts.platform_config.to_account_info(),
+                    },
+                    &[config_seeds],
+                ),
+                total_sol_needed,
+            )?;
+        }
+
+        // 4. Distribute SOL (WSOL)
+        if platform_sol > 0 {
+            token::transfer(
+                CpiContext::new_with_signer(
+                    ctx.accounts.token_program.to_account_info(),
+                    Transfer {
+                        from: ctx.accounts.trader_vault_token_sol.to_account_info(),
+                        to: ctx.accounts.platform_fee_receive_sol_ata.to_account_info(),
+                        authority: ctx.accounts.trader_vault.to_account_info(),
+                    },
+                    &[vault_seeds],
+                ),
+                platform_sol,
+            )?;
+        }
+
+        if commission_sol > 0 {
+            token::transfer(
+                CpiContext::new_with_signer(
+                    ctx.accounts.token_program.to_account_info(),
+                    Transfer {
+                        from: ctx.accounts.trader_vault_token_sol.to_account_info(),
+                        to: ctx.accounts.trader_receive_sol_ata.to_account_info(),
+                        authority: ctx.accounts.trader_vault.to_account_info(),
+                    },
+                    &[vault_seeds],
+                ),
+                commission_sol,
+            )?;
+        }
 
         token::transfer(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
                 Transfer {
-                    from: vault_ata,
+                    from: ctx.accounts.trader_vault_token_sol.to_account_info(),
                     to: ctx.accounts.investor_receive_ata.to_account_info(),
                     authority: ctx.accounts.trader_vault.to_account_info(),
                 },
                 &[vault_seeds],
             ),
-            amount_to_send,
+            investor_sol,
         )?;
 
+        // 5. Burn Shares
         token::burn(
             CpiContext::new(
                 ctx.accounts.token_program.to_account_info(),
@@ -318,7 +437,17 @@ pub struct DepositFunds<'info> {
     #[account(mut)]
     pub trader_vault_token_sol: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
+    pub trader_vault_token_usdc: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
     pub trader_vault_shares_mint: Box<Account<'info, Mint>>,
+
+    #[account(seeds = [b"platform_config_v2"], bump = platform_config.bump)]
+    pub platform_config: Box<Account<'info, PlatformConfig>>,
+    #[account(mut)]
+    pub platform_bank_sol: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub platform_bank_usdc: Box<Account<'info, TokenAccount>>,
+
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
@@ -367,7 +496,19 @@ pub struct WithdrawFunds<'info> {
     #[account(mut)]
     pub trader_vault_token_usdc: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
-    pub investor_receive_ata: Box<Account<'info, TokenAccount>>,
+    pub investor_receive_ata: Box<Account<'info, TokenAccount>>, // SOL ATA
+
+    #[account(seeds = [b"platform_config_v2"], bump = platform_config.bump)]
+    pub platform_config: Box<Account<'info, PlatformConfig>>,
+    #[account(mut)]
+    pub platform_bank_sol: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub platform_bank_usdc: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub trader_receive_sol_ata: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub platform_fee_receive_sol_ata: Box<Account<'info, TokenAccount>>,
+
     pub token_program: Program<'info, Token>,
 }
 
