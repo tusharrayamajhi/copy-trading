@@ -1,0 +1,43 @@
+name: cliq_campus_cicd_pipeline_vps_hosting
+
+on: 
+  push: 
+    branches: 
+      -  main
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "{{secrets.VPS_KEY}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{secrets.VPS_HOST}} >> ~/.ssh/known_hosts
+      - name: Deploy and run commands
+        run: |
+          ssh ${{secrets.VPS_USER}}@{{secrets.VPS_HOST}} << 'EOF'
+            set -e
+
+            echo "connecting to Vps server..."
+
+            cd ${{secrets.VPS_PATH}}
+
+
+            echo "pulling latest code from github"
+
+            git pull origin main
+
+            echo "running setup"
+
+            sudo make setup
+
+            echo "deployment successfull"
+          EOF
+      - name: Notify success
+        if: success()
+        run: echo "vps deployment succeedeed"
+      - name: Notify failure
+        if: failure()
+        run: echo "vps deployment failed"
