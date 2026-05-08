@@ -18,13 +18,25 @@ export function useAllTraders() {
         if (!program) return;
         try {
             setLoading(true);
-            console.log("Fetching all traders...");
-            if (!program.account) {
-                console.error("program.account is undefined!");
-                return;
-            }
-            const accounts = await (program.account as any).traderAccount.all();
-            console.log("Found traders:", accounts.length);
+            
+            // 1. Implementation of the robust fetch pattern
+            const fetchWithRetry = async (fn: () => Promise<any>, retries = 3): Promise<any> => {
+                for (let i = 0; i < retries; i++) {
+                    try {
+                        return await fn();
+                    } catch (err: any) {
+                        if (err.message?.includes("429") || err.logs?.some((l: string) => l.includes("429"))) {
+                            const delay = Math.pow(2, i) * 1000 + Math.random() * 500;
+                            console.warn(`Rate limit hit, retrying in ${delay.toFixed(0)}ms...`);
+                            await new Promise(res => setTimeout(res, delay));
+                            continue;
+                        }
+                        throw err;
+                    }
+                }
+            };
+
+            const accounts = await fetchWithRetry(() => (program.account as any).traderAccount.all());
             
             const formattedTraders = accounts
                 .filter((a: any) => a && a.publicKey && a.account)
@@ -107,8 +119,22 @@ export function usePlatformConfig() {
         try {
             setLoading(true);
             const [pda] = getPlatformConfigPDA();
-            // In Anchor, fetchNullable returns null if account is uninitialized
-            const config = await (program.account as any).platformConfig.fetchNullable(pda);
+
+            const fetchWithRetry = async (fn: () => Promise<any>, retries = 3): Promise<any> => {
+                for (let i = 0; i < retries; i++) {
+                    try {
+                        return await fn();
+                    } catch (err: any) {
+                        if (err.message?.includes("429")) {
+                            await new Promise(res => setTimeout(res, 1000 * (i + 1)));
+                            continue;
+                        }
+                        throw err;
+                    }
+                }
+            };
+
+            const config = await fetchWithRetry(() => (program.account as any).platformConfig.fetchNullable(pda));
             setData(config);
         } catch (error) {
             console.error("Failed to fetch platform config:", error);

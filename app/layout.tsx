@@ -10,10 +10,18 @@ import { Toaster } from "react-hot-toast";
 import Navbar from "@/src/components/Navbar";
 import { useMemo } from "react";
 
+import { rpcThrottleMiddleware } from "@/src/lib/rpc-limiter";
+
 const network = WalletAdapterNetwork.Devnet;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const endpoint = useMemo(() => clusterApiUrl(network), []);
+  const endpoint = useMemo(() => {
+    return process.env.NEXT_PUBLIC_RPC_URL || clusterApiUrl(network);
+  }, []);
+  const connectionConfig = useMemo(() => ({
+    fetchMiddleware: rpcThrottleMiddleware,
+    commitment: "confirmed" as const,
+  }), []);
   const wallets = useMemo(() => [
     new PhantomWalletAdapter(),
     new SolflareWalletAdapter()
@@ -21,7 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className="dark">
       <body suppressHydrationWarning className="bg-slate-950 text-slate-50 antialiased min-h-screen flex flex-col">
-        <ConnectionProvider endpoint={endpoint}>
+        <ConnectionProvider endpoint={endpoint} config={connectionConfig}>
           <WalletProvider wallets={wallets} autoConnect>
             <WalletModalProvider>
               <Navbar />
