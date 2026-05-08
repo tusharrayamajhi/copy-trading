@@ -102,10 +102,10 @@ export const rpcLimiter = new RpcLimiter();
  * Enhanced Fetch Middleware for @solana/web3.js Connection
  */
 export const rpcThrottleMiddleware = async (
-    info: RequestInfo | URL,
-    options: RequestInit | undefined,
-    fetch: (info: RequestInfo | URL, options?: RequestInit) => Promise<Response>
-) => {
+    info: any,
+    options: any,
+    fetch: any
+): Promise<any> => {
     let method = "unknown";
     let cacheKey = "";
     const url = info instanceof Request ? info.url : info.toString();
