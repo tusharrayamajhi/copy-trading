@@ -118,7 +118,7 @@ export const rpcThrottleMiddleware = async (
             const { id, ...rest } = body;
             cacheKey = `${url}:${JSON.stringify(rest)}`;
         }
-    } catch (e) {}
+    } catch (e) { }
 
     // 1. Check Cache (Only for read-only methods)
     const isReadOnly = method.startsWith("get") || method.startsWith("is") || method.startsWith("minimum");
@@ -141,7 +141,7 @@ export const rpcThrottleMiddleware = async (
 
         try {
             const response = await fetch(info, options);
-            
+            console.log(response)
             if (response.status === 429) {
                 rpcLimiter.recordResponse(0);
                 const waitTime = Math.pow(2, retries) * 1000 + Math.random() * 500;
@@ -165,7 +165,7 @@ export const rpcThrottleMiddleware = async (
                     status: response.status,
                     statusText: response.statusText
                 });
-                
+
                 // Return a proper Response object since we consumed the body
                 return new Response(text, {
                     status: response.status,

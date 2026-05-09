@@ -6,12 +6,15 @@ import { useTraderAccount, usePlatformConfig } from "../../src/hooks/useTraderQu
 import { useCreateTrader } from "../../src/hooks/useCreateTrader";
 import { useSignalSwap } from "../../src/hooks/useSignalSwap";
 import { useInitializePlatform } from "../../src/hooks/useInitializePlatform";
-import { Activity, Copy, CheckCircle2, AlertCircle, DollarSign, ArrowLeftRight, TrendingUp, TrendingDown, Users, Vault } from "lucide-react";
+import { 
+    Activity, Copy, CheckCircle2, AlertCircle, DollarSign, 
+    ArrowLeftRight, TrendingUp, TrendingDown, Users, Vault,
+    Info, ShoppingCart, Tag, RefreshCw, BarChart3, Zap, ArrowRight,
+    TrendingUp as Bullish, TrendingDown as Bearish
+} from "lucide-react";
 import toast from "react-hot-toast";
 import Link from "next/link";
-import { BankStatus } from "../../src/components/BankStatus";
 import { TransactionHistory } from "../../src/components/TransactionHistory";
-
 
 export default function TraderDashboard() {
   const { connection } = useConnection();
@@ -37,11 +40,11 @@ export default function TraderDashboard() {
         setManualPrice(price.toFixed(2));
       } catch (e) {
         console.error("Price fetch failed in dashboard");
-        setManualPrice("145.00"); // Force a default if everything crashes
+        setManualPrice("145.00");
       }
     };
     fetchPrice();
-    const interval = setInterval(fetchPrice, 5000); // Live price updates every 5s
+    const interval = setInterval(fetchPrice, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -58,11 +61,6 @@ export default function TraderDashboard() {
   const fetchVaultBalances = useCallback(async () => {
     if (!traderAccount || !connection) return;
     try {
-      console.log("Fetching balances for vault ATAs:", {
-        sol: traderAccount.traderVaultTokenSol?.toBase58(),
-        usdc: traderAccount.traderVaultTokenUsdc?.toBase58()
-      });
-
       const solBal = await connection.getTokenAccountBalance(traderAccount.traderVaultTokenSol);
       const usdcBal = await connection.getTokenAccountBalance(traderAccount.traderVaultTokenUsdc);
 
@@ -93,7 +91,11 @@ export default function TraderDashboard() {
   if (!publicKey) {
     return (
       <div className="container mx-auto px-6 py-20 text-center">
-        <h2 className="text-3xl font-bold mb-4">Connect your wallet to access the Trader Dashboard</h2>
+        <div className="w-20 h-20 bg-slate-900 border border-slate-800 rounded-3xl flex items-center justify-center mx-auto mb-6">
+            <Users className="w-10 h-10 text-slate-500" />
+        </div>
+        <h2 className="text-3xl font-bold mb-4">Connect Wallet</h2>
+        <p className="text-slate-400 font-mono">Sign in to manage your trading signal and followers.</p>
       </div>
     );
   }
@@ -101,22 +103,11 @@ export default function TraderDashboard() {
   const handleCreateProfile = async () => {
     try {
       setSubmitting(true);
-      const bps = commission * 100;
-      await createTrader(bps);
+      await createTrader(commission * 100);
       toast.success("Trader profile created successfully!");
       refetch();
     } catch (err: any) {
-      console.error("Create Trader Error:", err);
-      const logs = err.logs || (typeof err.getLogs === 'function' ? err.getLogs() : null);
-      if (logs) {
-        console.log("Transaction Logs:", logs);
-      }
-      if (err.message?.includes("already in use") || (logs && logs.some((l: string) => l.includes("already in use")))) {
-        toast.error("Profile already exists! Try refreshing the page.");
-        refetch(); // Attempt to load the existing profile
-      } else {
-        toast.error(err.message || "Failed to create profile");
-      }
+      toast.error(err.message || "Failed to create profile");
     } finally {
       setSubmitting(false);
     }
@@ -125,26 +116,12 @@ export default function TraderDashboard() {
   const handleSwap = async (asset: "Sol" | "Usdc") => {
     try {
       setSubmitting(true);
-      const tx = await signalSwap(asset);
-      toast.success(`Strategy shifted to ${asset} at Live Market Price!`);
+      await signalSwap(asset);
+      toast.success(`Strategy shifted to ${asset} successfully!`);
       refetch();
+      fetchVaultBalances();
     } catch (err: any) {
-      console.error("Swap Error:", err);
-      toast.error(err.message || "Swap failed");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleInitializePlatform = async () => {
-    try {
-      setSubmitting(true);
-      toast.loading("Initializing platform...", { id: "init-platform" });
-      await initializePlatform();
-      toast.success("Platform initialized successfully!", { id: "init-platform" });
-      refetchConfig();
-    } catch (err: any) {
-      toast.error(err.message || "Initialization failed", { id: "init-platform" });
+      toast.error(err.message || "Execution failed");
     } finally {
       setSubmitting(false);
     }
@@ -154,287 +131,285 @@ export default function TraderDashboard() {
     return <div className="flex justify-center items-center h-96"><div className="animate-spin w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full" /></div>;
   }
 
-  // Phase 1: Onboarding
   if (!platformConfig) {
     return (
-      <div className="container mx-auto px-6 py-20">
-        <div className="max-w-2xl mx-auto bg-slate-900 border border-slate-800 rounded-3xl p-12 text-center">
-          <div className="w-20 h-20 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-8">
-            <AlertCircle className="w-10 h-10 text-amber-500" />
-          </div>
-          <h2 className="text-3xl font-bold mb-4">Platform Not Initialized</h2>
-          <p className="text-slate-400 mb-8 leading-relaxed">
-            The program is deployed but the platform configuration has not been set up.
-            If you are the admin, click below to initialize the system.
-          </p>
-          <button
-            onClick={handleInitializePlatform}
-            disabled={submitting}
-            className="px-8 py-4 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-amber-600/20 disabled:opacity-50"
-          >
-            {submitting ? "Initializing..." : "Initialize Platform (Admin Only)"}
-          </button>
-        </div>
+      <div className="container mx-auto px-6 py-20 text-center">
+        <h2 className="text-2xl font-bold mb-4">Platform not initialized</h2>
+        <button onClick={() => initializePlatform()} className="px-6 py-3 bg-amber-500 text-black font-bold rounded-xl">Init Platform</button>
       </div>
     );
   }
 
   if (!traderAccount) {
     return (
-      <div className="container mx-auto px-6 py-12 max-w-2xl">
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl">
-          <div className="w-16 h-16 bg-cyan-500/10 rounded-2xl flex items-center justify-center mb-6">
-            <Activity className="text-cyan-400 w-8 h-8" />
-          </div>
-          <h1 className="text-3xl font-bold mb-2">Initialize your Trader Profile</h1>
-          <p className="text-slate-400 mb-8">Set your commission and start managing strategy for your followers.</p>
-
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-slate-400 mb-2">Commission Percentage (%)</label>
-              <input
-                type="number"
-                value={commission}
-                onChange={(e) => setCommission(Number(e.target.value))}
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all"
-                min="0"
-                max="100"
-              />
-              <p className="text-xs text-slate-500 mt-2">This is the percentage of profit you earn when an investor withdraws.</p>
+        <div className="container mx-auto px-6 py-12 max-w-2xl">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl">
+                <h1 className="text-3xl font-bold mb-8">Setup Trader Profile</h1>
+                <div className="space-y-6">
+                    <div>
+                        <label className="block text-sm font-medium text-slate-400 mb-2">Commission (%)</label>
+                        <input
+                            type="number"
+                            value={commission}
+                            onChange={(e) => setCommission(Number(e.target.value))}
+                            className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white"
+                        />
+                    </div>
+                    <button onClick={handleCreateProfile} disabled={submitting} className="w-full bg-cyan-500 py-4 rounded-xl font-bold text-slate-950">Initialize Vault</button>
+                </div>
             </div>
-
-            <button
-              onClick={handleCreateProfile}
-              disabled={submitting}
-              className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/30 transition-all disabled:opacity-50"
-            >
-              {submitting ? "Creating..." : "Initialize Profile & Vault"}
-            </button>
-          </div>
         </div>
-      </div>
     );
   }
 
   const currentAsset = Object.keys(traderAccount.currentAsset || {})[0]?.toLowerCase() === "usdc" ? "USDC" : "SOL";
-  const profit = traderAccount.lifetimeProfitUsd.toNumber() / 10 ** 6;
-  const loss = traderAccount.lifetimeLossUsd.toNumber() / 10 ** 6;
-  const net = profit - loss;
+  const realizedProfit = traderAccount.lifetimeProfitUsd.toNumber() / 1e6;
+  const realizedLoss = traderAccount.lifetimeLossUsd.toNumber() / 1e6;
+  const netRealized = realizedProfit - realizedLoss;
 
-  // Live PnL Calculation
   const livePrice = Number(manualPrice) || 0;
   const liveVaultValueUsd = (vaultBalances.sol * livePrice) + vaultBalances.usdc;
-  const initialVaultValueUsd = traderAccount.totalSharesValueUsd.toNumber() / 10 ** 6;
-
-  // Only show PnL if there is actual liquidity or active deposits
-  const hasActiveInvestment = initialVaultValueUsd > 0.01;
-  const unrealizedPnl = hasActiveInvestment ? (liveVaultValueUsd - initialVaultValueUsd) : 0;
+  const initialVaultValueUsd = traderAccount.totalSharesValueUsd.toNumber() / 1e6;
+  const unrealizedPnl = initialVaultValueUsd > 0.01 ? (liveVaultValueUsd - initialVaultValueUsd) : 0;
+  const pnlPercent = initialVaultValueUsd > 0.01 ? (unrealizedPnl / initialVaultValueUsd) * 100 : 0;
 
   return (
-    <div className="container mx-auto px-6 py-12">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6 bg-slate-900/50 border border-slate-800 p-8 rounded-3xl backdrop-blur-xl">
-        <div>
-          <h1 className="text-4xl font-black mb-2 bg-gradient-to-r from-white to-slate-500 bg-clip-text text-transparent italic tracking-tighter">TRADER DASHBOARD</h1>
-          <p className="text-slate-400 font-mono text-sm">{publicKey.toBase58()}</p>
-        </div>
-        <div className="flex gap-4">
-          <div className="bg-slate-950 border border-slate-800 px-6 py-3 rounded-2xl flex items-center gap-6">
-            <div>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Wallet Balance</p>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                <p className="text-xl font-black text-white">{walletBalance?.toFixed(3) || "0.000"} <span className="text-slate-500 text-sm italic tracking-tighter">SOL</span></p>
-              </div>
-            </div>
-            <div className="w-px h-8 bg-slate-800" />
-            <div>
-              <p className="text-[10px] font-bold text-cyan-500 uppercase tracking-widest mb-1">Active Strategy</p>
-              <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${currentAsset === 'SOL' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'}`}>
-                {currentAsset} MODE
-              </span>
-            </div>
+    <div className="container mx-auto px-4 py-8 max-w-7xl">
+      {/* --- HEADER --- */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8 mb-12">
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+             <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20">
+                <BarChart3 className="text-white w-6 h-6" />
+             </div>
+             <h1 className="text-3xl font-black italic tracking-tighter text-white uppercase">TRADING COMMAND</h1>
           </div>
-          <button
-            onClick={() => {
-              refetch();
-              fetchVaultBalances();
-              toast.success("Refreshing balances...");
-            }}
-            className="p-3 bg-slate-900 border border-slate-800 rounded-xl hover:bg-slate-800 transition-all self-center group"
-          >
-            <Activity className="w-5 h-5 text-slate-400 group-hover:text-cyan-400 transition-colors" />
-          </button>
+          <p className="text-slate-500 font-mono text-xs flex items-center gap-2">
+            WALLET: {publicKey.toBase58().slice(0, 8)}...
+          </p>
+        </div>
+
+        <div className="flex gap-4">
+            <div className="bg-slate-900 border border-slate-800 px-6 py-3 rounded-2xl flex items-center gap-6">
+                <div>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Live Price</p>
+                    <p className="text-xl font-black text-cyan-400">${manualPrice || "..."}</p>
+                </div>
+                <div className="w-px h-8 bg-slate-800"></div>
+                <div>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Wallet</p>
+                    <p className="text-xl font-black text-white">{walletBalance?.toFixed(3) || "0.000"} SOL</p>
+                </div>
+            </div>
+            <button 
+                onClick={() => { refetch(); fetchVaultBalances(); }}
+                className="w-12 h-12 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-center hover:bg-slate-800 transition-all"
+            >
+                <RefreshCw className="w-5 h-5 text-slate-400" />
+            </button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Strategy Control */}
+        {/* --- MAIN STRATEGY AREA --- */}
         <div className="lg:col-span-2 space-y-8">
-          <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8 backdrop-blur-xl">
-            <div className="flex justify-between items-center mb-8">
-              <h2 className="text-xl font-bold flex items-center gap-2"><ArrowLeftRight className="w-5 h-5 text-cyan-400" /> Strategy Management</h2>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Live Oracle Price</span>
-                  <input
-                    type="text"
-                    value={`$${manualPrice || "..."}`}
-                    readOnly
-                    className="bg-transparent border-none text-cyan-400 font-bold w-20 focus:outline-none text-sm cursor-not-allowed"
-                  />
+            <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 backdrop-blur-sm relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-64 h-64 bg-blue-500/5 blur-[120px] pointer-events-none"></div>
+                <div className="absolute bottom-0 right-0 w-64 h-64 bg-cyan-500/5 blur-[120px] pointer-events-none"></div>
+
+                <div className="flex justify-between items-center mb-6 relative z-10">
+                    <h2 className="text-xl font-black italic text-white flex items-center gap-3">
+                        <Zap className="w-5 h-5 text-yellow-400 fill-yellow-400" /> 
+                        INSTANT SWAP
+                    </h2>
+                    <div className={`px-4 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 flex items-center gap-2 ${
+                        currentAsset === "SOL" ? "bg-green-500/10 text-green-400 border-green-500/30" : "bg-blue-500/10 text-blue-400 border-blue-500/30"
+                    }`}>
+                        <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse"></span>
+                        {currentAsset} MODE
+                    </div>
                 </div>
-                <div className="px-3 py-1 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 rounded-full text-xs font-bold uppercase tracking-wider">
-                  Current Asset: {currentAsset}
+
+                <div className="w-full h-[400px] bg-slate-950 rounded-[2rem] border-2 border-slate-800 overflow-hidden mb-8 shadow-2xl relative group">
+                    <div className="absolute inset-0 border-2 border-cyan-500/10 group-hover:border-cyan-500/20 transition-colors pointer-events-none z-20 rounded-[2rem]"></div>
+                    <iframe
+                        src={`https://s.tradingview.com/widgetembed/?symbol=BINANCE%3ASOLUSDT&interval=D&theme=dark&style=1&timezone=Etc%2FUTC&locale=en`}
+                        style={{ width: '100%', height: '100%', border: 'none' }}
+                    />
                 </div>
-              </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* BUY SOL BUTTON */}
+                    <button
+                        onClick={() => handleSwap("Sol")}
+                        disabled={submitting || currentAsset === "SOL"}
+                        className={`group relative p-0.5 rounded-2xl transition-all duration-500 ${
+                            currentAsset === "SOL" 
+                            ? "opacity-40 cursor-not-allowed" 
+                            : "hover:scale-[1.02] active:scale-[0.98]"
+                        }`}
+                    >
+                        <div className={`absolute inset-0 rounded-2xl blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-500 bg-green-500`}></div>
+                        <div className={`relative h-full flex items-center justify-between px-6 py-4 rounded-2xl border-2 transition-all duration-500 bg-slate-950 ${
+                            currentAsset === "SOL" 
+                            ? "border-slate-800 text-slate-600" 
+                            : "border-green-500/20 group-hover:border-green-500"
+                        }`}>
+                            <div className="text-left">
+                                <h3 className="text-xl font-black text-white mb-0.5 flex items-center gap-2">
+                                    BUY SOL <Bullish className="w-4 h-4 text-green-500" />
+                                </h3>
+                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Entry Strategy</p>
+                            </div>
+                            <div className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-500 ${
+                                currentAsset === "SOL" ? "bg-slate-800" : "bg-green-500 shadow-lg shadow-green-500/20 group-hover:shadow-green-500/40"
+                            }`}>
+                                <ShoppingCart className={`w-5 h-5 ${currentAsset === "SOL" ? "text-slate-600" : "text-slate-950"}`} />
+                            </div>
+                        </div>
+                    </button>
+
+                    {/* SELL SOL BUTTON */}
+                    <button
+                        onClick={() => handleSwap("Usdc")}
+                        disabled={submitting || currentAsset === "USDC"}
+                        className={`group relative p-0.5 rounded-2xl transition-all duration-500 ${
+                            currentAsset === "USDC" 
+                            ? "opacity-40 cursor-not-allowed" 
+                            : "hover:scale-[1.02] active:scale-[0.98]"
+                        }`}
+                    >
+                        <div className={`absolute inset-0 rounded-2xl blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-500 bg-rose-500`}></div>
+                        <div className={`relative h-full flex items-center justify-between px-6 py-4 rounded-2xl border-2 transition-all duration-500 bg-slate-950 ${
+                            currentAsset === "USDC" 
+                            ? "border-slate-800 text-slate-600" 
+                            : "border-rose-500/20 group-hover:border-rose-500"
+                        }`}>
+                            <div className="text-left">
+                                <h3 className="text-xl font-black text-white mb-0.5 flex items-center gap-2">
+                                    SELL SOL <Bearish className="w-4 h-4 text-rose-500" />
+                                </h3>
+                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Exit Strategy</p>
+                            </div>
+                            <div className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-500 ${
+                                currentAsset === "USDC" ? "bg-slate-800" : "bg-rose-500 shadow-lg shadow-rose-500/20 group-hover:shadow-rose-500/40"
+                            }`}>
+                                <Tag className={`w-5 h-5 ${currentAsset === "USDC" ? "text-slate-600" : "text-white"}`} />
+                            </div>
+                        </div>
+                    </button>
+                </div>
             </div>
 
-            {/* TradingView Chart Embed */}
-            <div className="w-full h-[400px] bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden mb-8 shadow-inner">
-              <iframe
-                src={`https://s.tradingview.com/widgetembed/?frameElementId=tradingview_76d4d&symbol=BINANCE%3A${currentAsset === "SOL" ? "SOLUSDT" : "USDCUSDT"}&interval=D&hidesidetoolbar=1&hidetoptoolbar=1&symboledit=1&saveimage=1&toolbarbg=f1f3f6&studies=%5B%5D&theme=dark&style=1&timezone=Etc%2FUTC&studies_overrides=%7B%7D&overrides=%7B%7D&enabled_features=%5B%5D&disabled_features=%5B%5D&locale=en&utm_source=localhost&utm_medium=widget&utm_campaign=chart&utm_term=BINANCE%3ASOLUSDT`}
-                style={{ width: '100%', height: '100%', border: 'none' }}
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="bg-slate-900 border border-slate-800 rounded-[2rem] p-8 relative group overflow-hidden">
+                    <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity">
+                        <Bullish className="w-32 h-32 text-green-400" />
+                    </div>
+                    <div className="flex justify-between items-start mb-4 relative z-10">
+                        <div>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 italic">Unrealized Strategy P&L</p>
+                            <div className={`text-5xl font-black tabular-nums tracking-tighter ${unrealizedPnl >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                {unrealizedPnl >= 0 ? "+" : ""}${unrealizedPnl.toFixed(2)}
+                            </div>
+                        </div>
+                        <div className={`px-4 py-1.5 rounded-xl text-xs font-black ${unrealizedPnl >= 0 ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"}`}>
+                            {pnlPercent.toFixed(2)}%
+                        </div>
+                    </div>
+                    <div className="p-4 bg-slate-950/50 rounded-2xl border border-slate-800 space-y-3 relative z-10">
+                        <div className="flex justify-between text-xs">
+                            <span className="text-slate-500 font-bold uppercase tracking-tighter">Current Value</span>
+                            <span className="text-white font-black">${liveVaultValueUsd.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                            <span className="text-slate-500 font-bold uppercase tracking-tighter">Principal Basis</span>
+                            <span className="text-slate-400 font-bold">${initialVaultValueUsd.toFixed(2)}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-slate-900 border border-slate-800 rounded-[2rem] p-8 relative group overflow-hidden">
+                    <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity">
+                        <DollarSign className="w-32 h-32 text-cyan-400" />
+                    </div>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 italic">Lifetime Realized Performance</p>
+                    <div className={`text-5xl font-black mb-6 tabular-nums tracking-tighter ${netRealized >= 0 ? "text-cyan-400" : "text-red-400"}`}>
+                        {netRealized >= 0 ? "+" : ""}${netRealized.toFixed(2)}
+                    </div>
+                    <div className="flex gap-4 relative z-10">
+                        <div className="flex-1 p-4 bg-green-500/5 rounded-2xl border border-green-500/10">
+                            <p className="text-[9px] text-green-500 font-black uppercase tracking-widest mb-1">Total Profits</p>
+                            <p className="text-lg font-black text-white">${realizedProfit.toFixed(2)}</p>
+                        </div>
+                        <div className="flex-1 p-4 bg-red-500/5 rounded-2xl border border-red-500/10">
+                            <p className="text-[9px] text-red-500 font-black uppercase tracking-widest mb-1">Total Losses</p>
+                            <p className="text-lg font-black text-white">${realizedLoss.toFixed(2)}</p>
+                        </div>
+                    </div>
+                </div>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <button
-                onClick={() => handleSwap("Sol")}
-                disabled={submitting || vaultBalances.usdc <= 0}
-                className={`p-8 rounded-2xl border-2 transition-all flex flex-col items-center gap-4 ${currentAsset === "SOL" ? "border-cyan-500 bg-cyan-500/5 shadow-lg shadow-cyan-500/10" : "border-slate-800 bg-slate-950/50 hover:border-slate-700"}`}
-              >
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${currentAsset === "SOL" ? "bg-cyan-500 text-white" : "bg-slate-800 text-slate-400"}`}>
-                  <Activity className="w-6 h-6" />
-                </div>
-                <div className="text-center">
-                  <h3 className="font-bold text-lg">Shift to SOL</h3>
-                  <p className="text-sm text-slate-500">Target price growth of Solana</p>
-                </div>
-              </button>
-
-              <button
-                onClick={() => handleSwap("Usdc")}
-                disabled={submitting || vaultBalances.sol <= 0}
-                className={`p-8 rounded-2xl border-2 transition-all flex flex-col items-center gap-4 ${currentAsset === "USDC" ? "border-blue-500 bg-blue-500/5 shadow-lg shadow-blue-500/10" : "border-slate-800 bg-slate-950/50 hover:border-slate-700"}`}
-              >
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${currentAsset === "USDC" ? "bg-blue-500 text-white" : "bg-slate-800 text-slate-400"}`}>
-                  <DollarSign className="w-6 h-6" />
-                </div>
-                <div className="text-center">
-                  <h3 className="font-bold text-lg">Shift to USDC</h3>
-                  <p className="text-sm text-slate-500">Protect capital in stablecoins</p>
-                </div>
-              </button>
-            </div>
-
-            <div className="mt-8 p-4 bg-slate-950/50 border border-slate-800 rounded-xl flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-slate-500 mt-0.5" />
-              <p className="text-sm text-slate-400 italic">Executing a swap will move all liquidity from your Vault into the Bank to acquire the target asset at real-time market prices.</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 blur-3xl rounded-full -mr-16 -mt-16 group-hover:bg-cyan-500/10 transition-all" />
-              <h3 className="text-slate-400 text-sm font-medium mb-1 flex items-center gap-2">
-                Live Unrealized Strategy P&L
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              </h3>
-              <div className="flex items-baseline gap-2 mb-4">
-                <div className={`text-4xl font-black ${unrealizedPnl >= 0 ? "text-green-400" : "text-red-400"}`}>
-                    {unrealizedPnl >= 0 ? "+" : ""}${unrealizedPnl.toFixed(2)}
-                </div>
-                <div className={`text-sm font-bold ${unrealizedPnl >= 0 ? "text-green-500/60" : "text-red-500/60"}`}>
-                    ({hasActiveInvestment ? ((unrealizedPnl / initialVaultValueUsd) * 100).toFixed(2) : "0.00"}%)
-                </div>
-              </div>
-              <div className="flex gap-6 py-4 border-t border-slate-800/50">
-                <div className="flex-1">
-                  <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1">Current Holding Value</p>
-                  <p className="text-xl font-black text-white">${liveVaultValueUsd.toFixed(2)}</p>
-                </div>
-                <div className="w-px h-8 bg-slate-800 self-center" />
-                <div className="flex-1">
-                  <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1">Total Capital Invested</p>
-                  <p className="text-xl font-bold text-slate-400">${hasActiveInvestment ? initialVaultValueUsd.toFixed(2) : "0.00"}</p>
-                </div>
-              </div>
-              <p className="text-[10px] text-slate-600 mt-2 italic">* Values calculated using real-time Oracle prices</p>
-            </div>
-
-            <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8">
-              <h3 className="text-slate-400 text-sm font-medium mb-1">Lifetime Realized Performance</h3>
-              <div className={`text-3xl font-black mb-4 ${net >= 0 ? "text-green-400" : "text-red-400"}`}>
-                {net >= 0 ? "+" : ""}${net.toFixed(2)}
-              </div>
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <p className="text-xs text-slate-500 uppercase">Profits</p>
-                  <p className="text-lg font-bold text-green-400/80">${profit.toFixed(2)}</p>
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs text-slate-500 uppercase">Losses</p>
-                  <p className="text-lg font-bold text-red-400/80">${loss.toFixed(2)}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
         </div>
 
-        {/* Sidebar Info */}
+        {/* --- SIDEBAR --- */}
         <div className="space-y-8">
-          <BankStatus />
-
-          <div className="bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-3xl p-8 shadow-xl">
-            <h3 className="text-lg font-bold mb-6 flex items-center gap-2"><Vault className="w-5 h-5 text-cyan-400" /> Vault Configuration</h3>
-
-            <div className="space-y-4">
-              <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl">
-                <p className="text-xs text-slate-500 uppercase mb-1">Commission Rate</p>
-                <p className="text-lg font-bold text-slate-200">{traderAccount.commissionPercentage / 100}%</p>
-              </div>
-              <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl">
-                <p className="text-xs text-slate-500 uppercase mb-1">Vault Liquidity</p>
-                <div className="space-y-1">
-                  <p className="text-lg font-bold text-slate-200 flex justify-between">
-                    <span>SOL:</span>
-                    <span>{vaultBalances.sol.toFixed(3)}</span>
-                  </p>
-                  <p className="text-lg font-bold text-slate-200 flex justify-between">
-                    <span>USDC:</span>
-                    <span>${vaultBalances.usdc.toFixed(2)}</span>
-                  </p>
+            <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 blur-[80px] pointer-events-none"></div>
+                <h3 className="text-lg font-black text-white italic mb-8 flex items-center gap-3">
+                    <Vault className="w-5 h-5 text-cyan-400" /> VAULT ANALYTICS
+                </h3>
+                
+                <div className="space-y-6 mb-10">
+                    <div className="flex justify-between items-center py-4 border-b border-slate-800/50">
+                        <span className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Management Fee</span>
+                        <span className="text-sm font-black text-white tabular-nums">{traderAccount.commissionPercentage / 100}%</span>
+                    </div>
+                    <div className="flex justify-between items-center py-4 border-b border-slate-800/50">
+                        <span className="text-[10px] text-slate-500 uppercase font-black tracking-widest">SOL Liquidity</span>
+                        <span className="text-sm font-black text-white tabular-nums">{vaultBalances.sol.toFixed(4)}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-4 border-b border-slate-800/50">
+                        <span className="text-[10px] text-slate-500 uppercase font-black tracking-widest">USDC Liquidity</span>
+                        <span className="text-sm font-black text-white tabular-nums">${vaultBalances.usdc.toFixed(2)}</span>
+                    </div>
                 </div>
-              </div>
-              <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl">
-                <p className="text-xs text-slate-500 uppercase mb-1">Total Vault Value (USD)</p>
-                <p className="text-lg font-bold text-cyan-400">${(traderAccount.totalSharesValueUsd.toNumber() / 10 ** 6).toFixed(2)}</p>
-              </div>
+
+                <div className="p-6 bg-blue-600/5 border border-blue-500/20 rounded-3xl relative group overflow-hidden">
+                    <div className="absolute inset-0 bg-blue-600/0 group-hover:bg-blue-600/5 transition-colors duration-500"></div>
+                    <div className="flex items-center gap-3 mb-4 relative z-10">
+                        <Info className="w-5 h-5 text-blue-400" />
+                        <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em]">PnL Methodology</h4>
+                    </div>
+                    <p className="text-[10px] text-slate-400 leading-relaxed font-bold relative z-10">
+                        Live PnL = (SOL Balance × Market Price + USDC Balance) - Principal Basis.<br/><br/>
+                        The Principal Basis represents the absolute USD cost of all funds active in the vault. 
+                    </p>
+                </div>
             </div>
 
-            <div className="mt-8 pt-8 border-t border-slate-800">
-              <p className="text-xs text-slate-500 leading-relaxed italic mb-4">
-                Your followers' capital is stored in your Vault. When they profit, your commission is automatically deducted during their withdrawal.
-              </p>
-              <div className="p-3 bg-slate-950/50 rounded-xl border border-slate-800/50">
-                <p className="text-[10px] font-bold text-slate-600 uppercase mb-2">Vault Debug Info</p>
-                <p className="text-[9px] font-mono text-slate-500 break-all">SOL ATA: {traderAccount.traderVaultTokenSol?.toBase58()}</p>
-                <p className="text-[9px] font-mono text-slate-500 break-all">USDC ATA: {traderAccount.traderVaultTokenUsdc?.toBase58()}</p>
-              </div>
+            <div className="bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-[2.5rem] p-8 shadow-2xl relative group overflow-hidden">
+                <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-blue-500/5 blur-[100px] pointer-events-none group-hover:bg-blue-500/10 transition-colors"></div>
+                <h3 className="text-sm font-black text-white mb-4 italic uppercase tracking-widest flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-yellow-500" /> STRATEGY ENGINE
+                </h3>
+                <p className="text-xs text-slate-500 font-medium leading-relaxed mb-8">
+                    Every swap execution is logged on-chain. Current Oracle input is derived from live Binance price feeds via the platform gateway.
+                </p>
+                <div className="space-y-3">
+                    <div className="p-3 bg-slate-950/50 border border-slate-800 rounded-xl">
+                        <p className="text-[9px] font-black text-slate-600 uppercase mb-1">Vault SOL Address</p>
+                        <p className="text-[9px] font-mono text-slate-500 truncate">{traderAccount.traderVaultTokenSol?.toBase58()}</p>
+                    </div>
+                    <div className="p-3 bg-slate-950/50 border border-slate-800 rounded-xl">
+                        <p className="text-[9px] font-black text-slate-600 uppercase mb-1">Vault USDC Address</p>
+                        <p className="text-[9px] font-mono text-slate-500 truncate">{traderAccount.traderVaultTokenUsdc?.toBase58()}</p>
+                    </div>
+                </div>
             </div>
-          </div>
-
-          <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-3xl p-8">
-            <h3 className="text-sm font-bold text-cyan-400 uppercase mb-4 tracking-widest">Growth Tips</h3>
-            <p className="text-slate-300 text-sm leading-relaxed">
-              Traders with high trade frequency and consistent positive Net P&L appear higher in the rankings. Share your public key to invite investors.
-            </p>
-          </div>
         </div>
       </div>
 
-      <div className="mt-12">
+      <div className="mt-20">
         <TransactionHistory wallet={publicKey} />
       </div>
     </div>

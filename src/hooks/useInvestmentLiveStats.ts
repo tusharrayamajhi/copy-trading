@@ -2,13 +2,13 @@ import { useEffect, useState } from "react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
 import { useProgram } from "../lib/program";
-import { getSharesMintPDA, getTraderVaultPDA } from "../lib/pdas";
+import { getPlatformConfigPDA, getSharesMintPDA, getTraderVaultPDA } from "../lib/pdas";
 import { getATA } from "../lib/ata";
 import { WSOL_MINT, USDC_MINT } from "../lib/constants";
 
 export type InvestmentLiveStats = {
-    currentValue: number; // Net Value (after commission)
-    grossValue: number;   // Total value of ownership before commission
+    currentValue: number; // Net Value (after all fees)
+    grossValue: number;   // Total value of ownership before fees
     pnl: number;
     pnlPercent: number;
     shares: number;
@@ -18,6 +18,8 @@ export type InvestmentLiveStats = {
     vaultUsdc: number;
     totalShares: number;
     initialValue: number;
+    traderCommissionUsd: number;
+    platformFeeUsd: number;
 };
 
 export function useInvestmentLiveStats(investorWallet: PublicKey | null, investments: any[], traders: any[], solPrice: number) {
@@ -40,7 +42,7 @@ export function useInvestmentLiveStats(investorWallet: PublicKey | null, investm
                 const newStats: Record<string, InvestmentLiveStats> = {};
 
                 // Collect all accounts we need to fetch
-                const accountRequests: { pubkey: PublicKey, type: 'token' | 'mint' | 'trader' | 'investor', invKey: string, meta: any }[] = [];
+                const accountRequests: { pubkey: PublicKey, type: 'token' | 'mint' | 'trader' | 'investor' | 'platform', invKey: string, meta: any }[] = [];
 
                 for (const inv of investments) {
                     const trader = traders.find(t => t.publicKey === inv.linkedTraderPubkey);
@@ -48,29 +50,24 @@ export function useInvestmentLiveStats(investorWallet: PublicKey | null, investm
 
                     const traderAccountPubkey = new PublicKey(trader.publicKey);
                     const investorAccountPubkey = new PublicKey(inv.publicKey);
-                    
-                    // DERIVE addresses directly (needed because traderVault is not stored in account data)
+
+                    // Re-add missing derivations
                     const traderWallet = new PublicKey(trader.account.traderWallet);
                     const [traderVault] = getTraderVaultPDA(traderWallet);
                     const [sharesMint] = getSharesMintPDA(traderAccountPubkey);
-
-                    console.log(`[LiveStats] Checking Trader: ${traderWallet.toBase58().slice(0,4)}...`);
-                    console.log(`[LiveStats] --> Shares Mint: ${sharesMint.toBase58()}`);
-                    console.log(`[LiveStats] --> Investor Wallet: ${investorWallet.toBase58()}`);
-
                     const vaultSolAta = getATA(WSOL_MINT, traderVault, true);
                     const vaultUsdcAta = getATA(USDC_MINT, traderVault, true);
                     const investorSharesAta = getATA(sharesMint, investorWallet);
 
-                    console.log(`[LiveStats] --> Investor Shares ATA: ${investorSharesAta.toBase58()}`);
-
+                    const [platformConfigPDA] = getPlatformConfigPDA();
                     accountRequests.push(
                         { pubkey: vaultSolAta, type: 'token', invKey: inv.publicKey, meta: 'vaultSol' },
                         { pubkey: vaultUsdcAta, type: 'token', invKey: inv.publicKey, meta: 'vaultUsdc' },
                         { pubkey: sharesMint, type: 'mint', invKey: inv.publicKey, meta: 'sharesMint' },
                         { pubkey: investorSharesAta, type: 'token', invKey: inv.publicKey, meta: 'investorShares' },
                         { pubkey: traderAccountPubkey, type: 'trader', invKey: inv.publicKey, meta: 'traderAcc' },
-                        { pubkey: investorAccountPubkey, type: 'investor', invKey: inv.publicKey, meta: 'investorAcc' }
+                        { pubkey: investorAccountPubkey, type: 'investor', invKey: inv.publicKey, meta: 'investorAcc' },
+                        { pubkey: platformConfigPDA, type: 'platform', invKey: inv.publicKey, meta: 'platformConfig' }
                     );
                 }
 
@@ -87,30 +84,24 @@ export function useInvestmentLiveStats(investorWallet: PublicKey | null, investm
                     if (!resultsByInv[req.invKey]) resultsByInv[req.invKey] = {};
 
                     if (!info) {
-                        console.warn(`[LiveStats] Account not found: ${req.type} - ${req.pubkey.toBase58()}`);
                         return;
                     }
 
                     try {
                         if (req.type === 'token') {
                             const decoded = AccountLayout.decode(info.data);
-                            const amount = Number(decoded.amount.toString());
-                            console.log(`DEBUG: ATA ${req.pubkey.toBase58()} Balance detected:`, amount);
-                            resultsByInv[req.invKey][req.meta] = amount;
+                            resultsByInv[req.invKey][req.meta] = Number(decoded.amount.toString());
                         } else if (req.type === 'mint') {
                             const decoded = MintLayout.decode(info.data);
-                            
-                            // FIX: Safely convert BigInt to Number as requested
-                            const supplyValue = Number(decoded.supply.toString()); 
-                            
-                            console.log(`DEBUG: Mint ${req.pubkey.toBase58()} Supply detected:`, supplyValue);
-                            
-                            resultsByInv[req.invKey][req.meta] = supplyValue;
+                            resultsByInv[req.invKey][req.meta] = Number(decoded.supply.toString());
                         } else if (req.type === 'trader') {
                             const decoded = (program.account.traderAccount as any).coder.accounts.decode("TraderAccount", info.data);
                             resultsByInv[req.invKey][req.meta] = decoded;
                         } else if (req.type === 'investor') {
                             const decoded = (program.account.investorAccount as any).coder.accounts.decode("InvestorAccount", info.data);
+                            resultsByInv[req.invKey][req.meta] = decoded;
+                        } else if (req.type === 'platform') {
+                            const decoded = (program.account.platformConfig as any).coder.accounts.decode("PlatformConfig", info.data);
                             resultsByInv[req.invKey][req.meta] = decoded;
                         }
                     } catch (e) {
@@ -125,19 +116,9 @@ export function useInvestmentLiveStats(investorWallet: PublicKey | null, investm
 
                     const traderData = res.traderAcc;
                     const investorData = res.investorAcc;
+                    const platformData = res.platformConfig;
 
-                    if (!traderData || !investorData) {
-                        console.warn(`[LiveStats] Missing critical account data for ${inv.publicKey}`);
-                        continue;
-                    }
-
-                    // Log critical addresses for Explorer verification
-                    console.log(`[PnL Explorer Verification] Investment: ${inv.publicKey}`, {
-                        vaultSolAta: accountRequests.find(r => r.invKey === inv.publicKey && r.meta === 'vaultSol')?.pubkey.toBase58(),
-                        vaultUsdcAta: accountRequests.find(r => r.invKey === inv.publicKey && r.meta === 'vaultUsdc')?.pubkey.toBase58(),
-                        sharesMint: accountRequests.find(r => r.invKey === inv.publicKey && r.meta === 'sharesMint')?.pubkey.toBase58(),
-                        investorSharesAta: accountRequests.find(r => r.invKey === inv.publicKey && r.meta === 'investorShares')?.pubkey.toBase58(),
-                    });
+                    if (!traderData || !investorData) continue;
 
                     const vaultSol = (Number(res.vaultSol) || 0) / 1e9;
                     const vaultUsdc = (Number(res.vaultUsdc) || 0) / 1e6;
@@ -154,28 +135,25 @@ export function useInvestmentLiveStats(investorWallet: PublicKey | null, investm
 
                     const initialValue = investorData.initialDepositUsdValue.toNumber() / 1e6;
 
-                    let myNetValue = myGrossValue;
+                    let traderCommissionUsd = 0;
+                    let platformFeeUsd = 0;
+
                     if (myGrossValue > initialValue) {
-                        const profit = myGrossValue - initialValue;
-                        const commissionBps = traderData.commissionPercentage || 0;
-                        const commissionUsd = (profit * commissionBps) / 10000;
-                        myNetValue = myGrossValue - commissionUsd;
+                        const grossProfit = myGrossValue - initialValue;
+
+                        // Platform Fee (calculated first from profit)
+                        const platformBps = platformData?.platformFeePercentage || 0;
+                        platformFeeUsd = (grossProfit * platformBps) / 10000;
+
+                        // Trader Commission (calculated from remaining profit)
+                        const remainingProfit = grossProfit - platformFeeUsd;
+                        const traderBps = traderData.commissionPercentage || 0;
+                        traderCommissionUsd = (remainingProfit * traderBps) / 10000;
                     }
 
+                    const myNetValue = myGrossValue - platformFeeUsd - traderCommissionUsd;
                     const pnl = myNetValue - initialValue;
                     const pnlPercent = initialValue > 0 ? (pnl / initialValue) * 100 : 0;
-
-                    console.log(`[PnL Math Final] ${inv.publicKey}:`, {
-                        vaultSol,
-                        vaultUsdc,
-                        totalShares,
-                        myShares,
-                        totalVaultValue,
-                        myGrossValue,
-                        initialValue,
-                        pnl,
-                        solPrice: effectivePrice
-                    });
 
                     newStats[inv.publicKey] = {
                         currentValue: myNetValue,
@@ -187,7 +165,9 @@ export function useInvestmentLiveStats(investorWallet: PublicKey | null, investm
                         vaultSol,
                         vaultUsdc,
                         totalShares: totalShares / 1e6,
-                        initialValue
+                        initialValue,
+                        traderCommissionUsd,
+                        platformFeeUsd
                     };
                 }
 

@@ -110,16 +110,11 @@ export function useWithdraw() {
             tx.add(withdrawIx);
 
             // 3. UNWRAP: Close WSOL ATAs to send native SOL
-            // This satisfies the "send sol not wsol" requirement
+            // This satisfies the "send sol not wsol" requirement for the investor
             tx.add(createCloseAccountInstruction(investorReceiveAta, publicKey, publicKey));
             
-            // Only unwrap trader/platform if they are not the same as the investor (unlikely but safe)
-            if (!traderWallet.equals(publicKey)) {
-                tx.add(createCloseAccountInstruction(traderReceiveAta, traderWallet, publicKey));
-            }
-            if (!platformFeeRecipient.equals(publicKey) && !platformFeeRecipient.equals(traderWallet)) {
-                tx.add(createCloseAccountInstruction(platformReceiveAta, platformFeeRecipient, publicKey));
-            }
+            // Note: We cannot unwrap trader/platform ATAs here because we don't have their signatures.
+            // They will receive WSOL which they can unwrap themselves.
 
             toast.loading("Executing transaction (SOL conversion active)...", { id: loadingToast });
 

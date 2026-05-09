@@ -64,7 +64,7 @@ export default function Navbar() {
             <Link href="/investor" className="text-slate-300 hover:text-white transition">Investor Portal</Link>
 
             {/* Bank Testing Info */}
-            <div className="flex items-center gap-4 px-4 py-1.5 bg-slate-950 border border-slate-800 rounded-full">
+            {/* <div className="flex items-center gap-4 px-4 py-1.5 bg-slate-950 border border-slate-800 rounded-full">
               <Landmark className="w-4 h-4 text-amber-500" />
               <div className="flex gap-3 text-[10px] font-bold uppercase tracking-tighter">
                 <div className="flex flex-col">
@@ -77,7 +77,7 @@ export default function Navbar() {
                   <span className="text-amber-500">${bankBalances?.usdc.toFixed(2) || "0.00"}</span>
                 </div>
               </div>
-            </div>
+            </div> */}
           </div>
           <div className="flex items-center">
             {mounted ? (
