@@ -11,6 +11,11 @@ import Navbar from "@/src/components/Navbar";
 import { useMemo } from "react";
 
 import { rpcThrottleMiddleware } from "@/src/lib/rpc-limiter";
+import { Geist } from "next/font/google";
+import { cn } from "@/lib/utils";
+import { TooltipProvider } from "@/components/ui/tooltip";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 const network = WalletAdapterNetwork.Devnet;
 
@@ -27,18 +32,30 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     new SolflareWalletAdapter()
   ], []);
   return (
-    <html lang="en" className="dark">
-      <body suppressHydrationWarning className="bg-slate-950 text-slate-50 antialiased min-h-screen flex flex-col">
+    <html lang="en" className={cn("dark", "font-sans", geist.variable)}>
+      <body
+        suppressHydrationWarning
+        className="bg-background text-foreground antialiased min-h-screen flex flex-col"
+      >
         <ConnectionProvider endpoint={endpoint} config={connectionConfig}>
           <WalletProvider wallets={wallets} autoConnect>
             <WalletModalProvider>
-              <Navbar />
-              <div className="flex-1 mt-16 pt-8 pb-16">
-                {children}
-              </div>
-              <Toaster position="bottom-right" toastOptions={{
-                style: { background: '#1e293b', color: '#fff' }
-              }} />
+              <TooltipProvider>
+                <Navbar />
+                <div className="flex-1 mt-16 pt-8 pb-16">
+                  {children}
+                </div>
+                <Toaster
+                  position="bottom-right"
+                  toastOptions={{
+                    style: {
+                      background: "var(--card)",
+                      color: "var(--foreground)",
+                      border: "1px solid var(--border)",
+                    },
+                  }}
+                />
+              </TooltipProvider>
             </WalletModalProvider>
           </WalletProvider>
         </ConnectionProvider>

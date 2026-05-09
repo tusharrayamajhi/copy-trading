@@ -9,156 +9,271 @@ import { useDeposit } from "../../src/hooks/useDeposit";
 import { useWithdraw } from "../../src/hooks/useWithdraw";
 import { useWrapSol } from "../../src/hooks/useWrapSol";
 import { PublicKey } from "@solana/web3.js";
-import { 
-    Search, Wallet, TrendingUp, Shield, BarChart3, ArrowUpRight, 
-    DollarSign, Activity, Users, ChevronRight, Vault, ArrowDownRight,
-    Filter, LayoutGrid, List, Info, RefreshCw
+import {
+  Search,
+  Wallet,
+  TrendingUp,
+  BarChart3,
+  Activity,
+  Vault,
+  ArrowDownRight,
+  Shield,
+  Info,
+  RefreshCw,
+  Filter,
+  Users,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { TransactionHistory } from "../../src/components/TransactionHistory";
 import { useInvestmentLiveStats } from "../../src/hooks/useInvestmentLiveStats";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 
-// --- Sub-components for better organization ---
+interface VaultTraderAccount {
+  commissionPercentage: number;
+  lifetimeProfitUsd: { toNumber: () => number };
+  lifetimeLossUsd: { toNumber: () => number };
+  currentAsset: Record<string, unknown> | undefined;
+  traderWallet: { toBase58: () => string };
+}
 
-function TraderRow({ trader, index, submitting, onDeposit, manualPrice }: { 
-  trader: any, 
-  index: number, 
-  submitting: boolean, 
-  onDeposit: (wallet: string, amount: number) => void,
-  manualPrice: string 
+interface TraderListItem {
+  publicKey: string;
+  account: VaultTraderAccount;
+}
+
+interface LiveStat {
+  currentValue: number;
+  grossValue: number;
+  pnl: number;
+  shares: number;
+  traderCommissionUsd: number;
+  platformFeeUsd: number;
+  ownershipPercentage: number;
+}
+
+interface InvestmentRecord {
+  publicKey: string;
+  linkedTraderPubkey: string | { toString: () => string };
+  account: {
+    initialDepositUsdValue?: { toNumber: () => number };
+  };
+}
+
+function TraderRow({
+  trader,
+  index,
+  submitting,
+  onDeposit,
+}: {
+  trader: TraderListItem;
+  index: number;
+  submitting: boolean;
+  onDeposit: (wallet: string, amount: number) => void;
 }) {
   const [amount, setAmount] = useState<string>("0.1");
   const commission = trader.account.commissionPercentage / 100;
-  const profit = (trader.account.lifetimeProfitUsd.toNumber() - trader.account.lifetimeLossUsd.toNumber()) / 10 ** 6;
-  const currentAsset = Object.keys(trader.account.currentAsset || {})[0]?.toLowerCase() === "usdc" ? "USDC" : "SOL";
+  const profit =
+    (trader.account.lifetimeProfitUsd.toNumber() -
+      trader.account.lifetimeLossUsd.toNumber()) /
+    10 ** 6;
+  const currentAsset =
+    Object.keys(trader.account.currentAsset || {})[0]?.toLowerCase() === "usdc"
+      ? "USDC"
+      : "SOL";
 
   return (
-    <tr className="group hover:bg-slate-800/40 transition-colors border-b border-slate-800/50">
-      <td className="py-6 px-4">
+    <TableRow>
+      <TableCell className="py-4">
         <div className="flex items-center gap-3">
-          <span className="text-xs font-black text-slate-500 tabular-nums">{(index + 1).toString().padStart(2, '0')}</span>
-          <div className="w-8 h-8 bg-gradient-to-br from-cyan-500/20 to-blue-600/20 rounded-lg flex items-center justify-center border border-cyan-500/20">
-            <Users className="text-cyan-400 w-4 h-4" />
+          <span className="text-xs tabular-nums text-muted-foreground">
+            {(index + 1).toString().padStart(2, "0")}
+          </span>
+          <div className="flex size-8 items-center justify-center rounded-md bg-primary/10 ring-1 ring-primary/20">
+            <Users className="size-4 text-primary" />
           </div>
         </div>
-      </td>
-      <td className="py-6 px-4">
-        <Link href={`/trader/${trader.account.traderWallet.toBase58()}`} className="hover:text-cyan-400 transition-colors">
-          <p className="text-sm font-bold text-slate-200">{trader.account.traderWallet.toBase58().slice(0, 4)}...{trader.account.traderWallet.toBase58().slice(-4)}</p>
-          <p className="text-[10px] text-slate-500 font-mono">Trader ID</p>
+      </TableCell>
+      <TableCell className="py-4">
+        <Link
+          href={`/trader/${trader.account.traderWallet.toBase58()}`}
+          className="text-sm font-medium text-foreground hover:text-primary"
+        >
+          {trader.account.traderWallet.toBase58().slice(0, 4)}…
+          {trader.account.traderWallet.toBase58().slice(-4)}
         </Link>
-      </td>
-      <td className="py-6 px-4">
-        <div className={`flex items-center gap-1.5 ${profit > 0.01 ? "text-green-400" : profit < -0.01 ? "text-red-400" : "text-slate-400"}`}>
-          {profit > 0.01 ? <TrendingUp className="w-3 h-3" /> : profit < -0.01 ? <ArrowDownRight className="w-3 h-3" /> : <Activity className="w-3 h-3" />}
-          <span className="text-sm font-black">${Math.abs(profit).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+        <p className="text-[10px] text-muted-foreground">Trader</p>
+      </TableCell>
+      <TableCell className="py-4">
+        <div
+          className={`flex items-center gap-1.5 text-sm font-medium tabular-nums ${
+            profit > 0.01
+              ? "text-chart-2"
+              : profit < -0.01
+                ? "text-destructive"
+                : "text-muted-foreground"
+          }`}
+        >
+          {profit > 0.01 ? (
+            <TrendingUp className="size-3" />
+          ) : profit < -0.01 ? (
+            <ArrowDownRight className="size-3" />
+          ) : (
+            <Activity className="size-3" />
+          )}
+          $
+          {Math.abs(profit).toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}
         </div>
-      </td>
-      <td className="py-6 px-4">
-        <span className="text-sm font-medium text-slate-300">{commission}%</span>
-      </td>
-      <td className="py-6 px-4">
-        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider ${
-          currentAsset === "SOL" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" : "bg-purple-500/10 text-purple-400 border-purple-500/20"
-        }`}>
+      </TableCell>
+      <TableCell className="py-4 text-sm">{commission}%</TableCell>
+      <TableCell className="py-4">
+        <Badge variant="outline" className="font-medium">
           {currentAsset}
-        </span>
-      </td>
-      <td className="py-6 px-4 text-right">
+        </Badge>
+      </TableCell>
+      <TableCell className="py-4 text-right">
         <div className="flex items-center justify-end gap-2">
-          <div className="relative">
-            <input
+          <div className="relative w-28">
+            <Input
               type="number"
-              className="w-24 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+              className="h-8 pr-10 text-xs tabular-nums"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
             />
-            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-600">SOL</span>
+            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
+              SOL
+            </span>
           </div>
-          <button
-            onClick={() => onDeposit(trader.account.traderWallet.toBase58(), Number(amount))}
+          <Button
+            size="sm"
             disabled={submitting}
-            className="px-4 py-1.5 bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 text-slate-950 font-black rounded-lg text-xs transition-all shadow-lg shadow-cyan-500/20"
+            onClick={() =>
+              onDeposit(trader.account.traderWallet.toBase58(), Number(amount))
+            }
           >
-            DEPOSIT
-          </button>
+            Deposit
+          </Button>
         </div>
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   );
 }
 
-function InvestmentRow({ inv, stats, trader, manualPrice, handleWithdraw, submitting }: any) {
-    const initialUsd = inv.account.initialDepositUsdValue?.toNumber() / 10 ** 6 || 0;
-    const currentAsset = Object.keys(trader?.account?.currentAsset || {})[0]?.toLowerCase() === "usdc" ? "USDC" : "SOL";
-    const stat = stats[inv.publicKey];
+function InvestmentRow({
+  inv,
+  stats,
+  trader,
+  manualPrice,
+  handleWithdraw,
+  submitting,
+}: {
+  inv: InvestmentRecord;
+  stats: Record<string, LiveStat>;
+  trader: TraderListItem | undefined;
+  manualPrice: string;
+  handleWithdraw: (investment: InvestmentRecord) => void;
+  submitting: boolean;
+}) {
+  const initialUsd =
+    (inv.account.initialDepositUsdValue?.toNumber() ?? 0) / 10 ** 6;
+  const currentAsset =
+    Object.keys(trader?.account?.currentAsset || {})[0]?.toLowerCase() ===
+    "usdc"
+      ? "USDC"
+      : "SOL";
+  const stat = stats[inv.publicKey];
+  const solPrice = Number(manualPrice) || 1;
+  const netSolReturn = (stat?.currentValue || 0) / solPrice;
 
-    const solPrice = Number(manualPrice) || 1;
-    const netSolReturn = (stat?.currentValue || 0) / solPrice;
-    const grossSolReturn = (stat?.grossValue || 0) / solPrice;
-
-    return (
-        <tr className="group hover:bg-slate-800/40 transition-colors border-b border-slate-800/50">
-            <td className="py-6 px-4">
-                <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-purple-500/10 rounded-lg flex items-center justify-center border border-purple-500/20">
-                        <Vault className="text-purple-400 w-4 h-4" />
-                    </div>
-                    <div>
-                        <p className="text-sm font-bold text-slate-200">#{inv.publicKey.slice(0, 6)}</p>
-                        <div className="flex items-center gap-1.5">
-                            <span className="text-[9px] font-black text-cyan-400 uppercase tracking-tighter">
-                                {stat?.ownershipPercentage?.toFixed(2)}% OWNERSHIP
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            </td>
-            <td className="py-6 px-4">
-                <p className="text-sm font-medium text-slate-300">{trader?.account?.traderWallet?.toBase58()?.slice(0, 4)}...{trader?.account?.traderWallet?.toBase58()?.slice(-4)}</p>
-                <div className="flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                    <p className="text-[10px] text-slate-500 uppercase font-bold tracking-tighter">Strategy: {currentAsset}</p>
-                </div>
-            </td>
-            <td className="py-6 px-4">
-                <p className="text-sm font-bold text-slate-200">${initialUsd.toFixed(2)}</p>
-                <p className="text-[9px] text-slate-500 font-mono uppercase">Cost Basis</p>
-            </td>
-            <td className="py-6 px-4">
-                <div className="space-y-1">
-                    <p className="text-sm font-black text-white">${stat?.grossValue?.toFixed(2) || "0.00"}</p>
-                    <div className="flex flex-col gap-0.5">
-                        <span className="text-[9px] text-slate-500 uppercase flex justify-between">
-                            <span>Trader Fee:</span>
-                            <span className="text-red-400/80">-${stat?.traderCommissionUsd?.toFixed(2) || "0.00"}</span>
-                        </span>
-                        <span className="text-[9px] text-slate-500 uppercase flex justify-between">
-                            <span>Platform:</span>
-                            <span className="text-red-400/80">-${stat?.platformFeeUsd?.toFixed(2) || "0.00"}</span>
-                        </span>
-                    </div>
-                </div>
-            </td>
-            <td className="py-6 px-4">
-                <div className="flex flex-col">
-                    <span className="text-sm font-black text-cyan-400">{netSolReturn.toFixed(4)} SOL</span>
-                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">
-                        ≈ ${(stat?.currentValue || 0).toFixed(2)} NET
-                    </span>
-                </div>
-            </td>
-            <td className="py-6 px-4 text-right">
-                <button
-                    onClick={() => handleWithdraw(inv)}
-                    disabled={submitting || !stat || stat.shares <= 0}
-                    className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 font-bold rounded-lg border border-red-500/30 transition-all text-xs disabled:opacity-30"
-                >
-                    WITHDRAW
-                </button>
-            </td>
-        </tr>
-    );
+  return (
+    <TableRow>
+      <TableCell className="py-4">
+        <div className="flex items-center gap-3">
+          <div className="flex size-8 items-center justify-center rounded-md bg-primary/10 ring-1 ring-primary/20">
+            <Vault className="size-4 text-primary" />
+          </div>
+          <div>
+            <p className="text-sm font-medium">#{inv.publicKey.slice(0, 6)}</p>
+            <p className="text-[10px] text-primary">
+              {stat?.ownershipPercentage?.toFixed(2)}% ownership
+            </p>
+          </div>
+        </div>
+      </TableCell>
+      <TableCell className="py-4">
+        <p className="text-sm font-medium">
+          {trader?.account?.traderWallet?.toBase58()?.slice(0, 4)}…
+          {trader?.account?.traderWallet?.toBase58()?.slice(-4)}
+        </p>
+        <p className="text-[10px] text-muted-foreground">
+          Strategy · {currentAsset}
+        </p>
+      </TableCell>
+      <TableCell className="py-4 tabular-nums text-sm">
+        ${initialUsd.toFixed(2)}
+        <p className="text-[10px] text-muted-foreground">Cost basis</p>
+      </TableCell>
+      <TableCell className="py-4">
+        <p className="text-sm font-medium tabular-nums">
+          ${stat?.grossValue?.toFixed(2) || "0.00"}
+        </p>
+        <div className="mt-1 space-y-0.5 text-[10px] text-muted-foreground">
+          <div className="flex justify-between gap-4">
+            <span>Trader fee</span>
+            <span className="text-destructive/90">
+              -${stat?.traderCommissionUsd?.toFixed(2) || "0.00"}
+            </span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span>Platform</span>
+            <span className="text-destructive/90">
+              -${stat?.platformFeeUsd?.toFixed(2) || "0.00"}
+            </span>
+          </div>
+        </div>
+      </TableCell>
+      <TableCell className="py-4">
+        <span className="text-sm font-medium tabular-nums text-primary">
+          {netSolReturn.toFixed(4)} SOL
+        </span>
+        <p className="text-[10px] text-muted-foreground">
+          ≈ ${(stat?.currentValue || 0).toFixed(2)} net
+        </p>
+      </TableCell>
+      <TableCell className="py-4 text-right">
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={() => handleWithdraw(inv)}
+          disabled={submitting || !stat || stat.shares <= 0}
+        >
+          Withdraw
+        </Button>
+      </TableCell>
+    </TableRow>
+  );
 }
 
 export default function InvestorDashboard() {
@@ -166,18 +281,27 @@ export default function InvestorDashboard() {
   const { publicKey } = useWallet();
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [wsolBalance, setWsolBalance] = useState<number | null>(null);
-  const { traders, loading: loadingTraders, refetch: refetchTraders } = useAllTraders();
-  const { investments, loading: loadingInvestments, refetch: refetchInvestments } = useMyInvestments(publicKey, traders);
+  const { traders, loading: loadingTraders, refetch: refetchTraders } =
+    useAllTraders();
+  const { investments, loading: loadingInvestments, refetch: refetchInvestments } =
+    useMyInvestments(publicKey, traders);
 
   const [manualPrice, setManualPrice] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState<"investments" | "discover">("investments");
+  const [activeTab, setActiveTab] = useState<"investments" | "discover">(
+    "investments"
+  );
   const [search, setSearch] = useState("");
 
   const deposit = useDeposit();
   const withdraw = useWithdraw();
   const { wrap } = useWrapSol();
-  const { stats: liveStats, loading: loadingStats } = useInvestmentLiveStats(publicKey, investments, traders, Number(manualPrice));
+  const { stats: liveStats } = useInvestmentLiveStats(
+    publicKey,
+    investments,
+    traders,
+    Number(manualPrice)
+  );
 
   useEffect(() => {
     const fetchPrice = async () => {
@@ -185,8 +309,7 @@ export default function InvestorDashboard() {
         const { getSolPrice } = await import("../../src/lib/price");
         const price = await getSolPrice();
         setManualPrice(price.toFixed(2));
-      } catch (e) {
-        console.error("Price fetch failed in dashboard");
+      } catch {
         setManualPrice("145.00");
       }
     };
@@ -201,17 +324,18 @@ export default function InvestorDashboard() {
       try {
         const bal = await connection.getBalance(publicKey);
         setWalletBalance(bal / 1e9);
-
-        const { getAssociatedTokenAddressSync } = await import("@solana/spl-token");
+        const { getAssociatedTokenAddressSync } = await import(
+          "@solana/spl-token"
+        );
         const { WSOL_MINT } = await import("../../src/lib/constants");
         const ata = getAssociatedTokenAddressSync(WSOL_MINT, publicKey);
         try {
           const tokenBal = await connection.getTokenAccountBalance(ata);
           setWsolBalance(Number(tokenBal.value.amount) / 1e9);
-        } catch (e) {
+        } catch {
           setWsolBalance(0);
         }
-      } catch (e) {
+      } catch {
         console.error("Failed to fetch balances");
       }
     };
@@ -224,43 +348,46 @@ export default function InvestorDashboard() {
     try {
       setSubmitting(true);
       const lamports = BigInt(Math.floor(requestedAmount * 1e9));
-
       const currentWsol = wsolBalance || 0;
       if (currentWsol < requestedAmount) {
         const needed = requestedAmount - currentWsol;
-        toast.loading(`Wrapping ${needed.toFixed(3)} SOL...`, { id: "deposit" });
+        toast.loading(`Wrapping ${needed.toFixed(3)} SOL…`, { id: "deposit" });
         await wrap(needed);
-        await new Promise(r => setTimeout(r, 2000));
+        await new Promise((r) => setTimeout(r, 2000));
       }
-
-      toast.loading("Depositing to Vault...", { id: "deposit" });
+      toast.loading("Depositing to vault…", { id: "deposit" });
       const price = Number(manualPrice);
       if (isNaN(price) || price <= 0) throw new Error("Invalid SOL price");
-
       await deposit(new PublicKey(traderWallet), lamports, price);
-
       toast.success("Deposit successful!", { id: "deposit" });
       refetchInvestments();
       refetchTraders();
-    } catch (err: any) {
-      toast.error(err.message || "Deposit failed", { id: "deposit" });
+    } catch (err: unknown) {
+      toast.error(
+        err instanceof Error ? err.message : "Deposit failed",
+        { id: "deposit" }
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleWithdraw = async (investment: any) => {
+  const handleWithdraw = async (investment: InvestmentRecord) => {
     try {
       setSubmitting(true);
-      toast.loading("Withdrawing from Vault...", { id: "withdraw" });
-      
-      const traderPda = typeof investment.linkedTraderPubkey === 'string' ? investment.linkedTraderPubkey : investment.linkedTraderPubkey.toString();
+      toast.loading("Withdrawing…", { id: "withdraw" });
+      const traderPda =
+        typeof investment.linkedTraderPubkey === "string"
+          ? investment.linkedTraderPubkey
+          : investment.linkedTraderPubkey.toString();
       await withdraw(new PublicKey(traderPda), Number(manualPrice));
-      
       toast.success("Withdrawal successful!", { id: "withdraw" });
       refetchInvestments();
-    } catch (err: any) {
-      toast.error(err.message || "Withdrawal failed", { id: "withdraw" });
+    } catch (err: unknown) {
+      toast.error(
+        err instanceof Error ? err.message : "Withdrawal failed",
+        { id: "withdraw" }
+      );
     } finally {
       setSubmitting(false);
     }
@@ -268,265 +395,331 @@ export default function InvestorDashboard() {
 
   if (!publicKey) {
     return (
-      <div className="container mx-auto px-6 py-20 text-center">
-        <div className="w-20 h-20 bg-slate-900 border border-slate-800 rounded-3xl flex items-center justify-center mx-auto mb-6">
-          <Wallet className="w-10 h-10 text-slate-500" />
-        </div>
-        <h2 className="text-3xl font-bold mb-4">Connect Wallet</h2>
-        <p className="text-slate-400">Join the future of decentralized copy trading.</p>
+      <div className="mx-auto max-w-lg px-6 py-20">
+        <Card className="ring-border/80">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-xl bg-muted ring-1 ring-border">
+              <Wallet className="size-7 text-muted-foreground" />
+            </div>
+            <CardTitle>Connect wallet</CardTitle>
+            <CardDescription>
+              Link a wallet to view positions and copy traders on Solana.
+            </CardDescription>
+          </CardHeader>
+        </Card>
       </div>
     );
   }
 
   const filteredTraders = traders
-    .filter(t => t.publicKey.toLowerCase().includes(search.toLowerCase()) || t.account.traderWallet.toBase58().toLowerCase().includes(search.toLowerCase()))
+    .filter(
+      (t) =>
+        t.publicKey.toLowerCase().includes(search.toLowerCase()) ||
+        t.account.traderWallet
+          .toBase58()
+          .toLowerCase()
+          .includes(search.toLowerCase())
+    )
     .sort((a, b) => {
-      const profitA = a.account.lifetimeProfitUsd.toNumber() - a.account.lifetimeLossUsd.toNumber();
-      const profitB = b.account.lifetimeProfitUsd.toNumber() - b.account.lifetimeLossUsd.toNumber();
+      const profitA =
+        a.account.lifetimeProfitUsd.toNumber() -
+        a.account.lifetimeLossUsd.toNumber();
+      const profitB =
+        b.account.lifetimeProfitUsd.toNumber() -
+        b.account.lifetimeLossUsd.toNumber();
       return profitB - profitA;
     });
 
+  const totalPnl = Object.values(liveStats).reduce((acc, s) => acc + s.pnl, 0);
+
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
-      {/* --- HEADER --- */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8 mb-12">
+    <div className="mx-auto max-w-7xl px-4 py-8">
+      <div className="mb-10 flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-2">
           <div className="flex items-center gap-3">
-             <div className="w-10 h-10 bg-cyan-500 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/20">
-                <BarChart3 className="text-slate-950 w-6 h-6" />
-             </div>
-             <h1 className="text-3xl font-black italic tracking-tighter text-white">INVESTOR PORTAL</h1>
+            <div className="flex size-10 items-center justify-center rounded-lg bg-primary/15 ring-1 ring-primary/25">
+              <BarChart3 className="size-5 text-primary" />
+            </div>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Investor portal
+            </h1>
           </div>
-          <p className="text-slate-500 font-mono text-xs flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-            CONNECTED: {publicKey.toBase58().slice(0, 6)}...{publicKey.toBase58().slice(-6)}
+          <p className="font-mono text-xs text-muted-foreground">
+            <span className="mr-2 inline-block size-2 rounded-full bg-chart-2" />
+            {publicKey.toBase58().slice(0, 6)}…{publicKey.toBase58().slice(-6)}
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-4">
-            <div className="bg-slate-900/50 backdrop-blur-md border border-slate-800 p-4 rounded-2xl flex items-center gap-8">
-                <div>
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Native SOL</p>
-                    <p className="text-xl font-black text-white leading-none">{walletBalance?.toFixed(3) || "0.000"}</p>
-                </div>
-                <div className="w-px h-8 bg-slate-800"></div>
-                <div>
-                    <p className="text-[10px] font-bold text-cyan-500 uppercase tracking-widest mb-1">Wrapped SOL</p>
-                    <p className="text-xl font-black text-cyan-400 leading-none">{wsolBalance?.toFixed(3) || "0.000"}</p>
-                </div>
-            </div>
-            <div className="bg-slate-900/50 backdrop-blur-md border border-slate-800 p-4 rounded-2xl flex items-center gap-4">
-                <div className="text-right">
-                    <p className="text-[10px] font-bold text-amber-500 uppercase tracking-widest mb-1">Oracle Price</p>
-                    <p className="text-xl font-black text-white leading-none">${manualPrice || "..."}</p>
-                </div>
-                <button 
-                    onClick={() => { refetchInvestments(); refetchTraders(); }}
-                    className="w-10 h-10 bg-slate-800 hover:bg-slate-700 rounded-xl flex items-center justify-center transition-all group"
-                >
-                    <RefreshCw className="w-4 h-4 text-slate-400 group-hover:rotate-180 transition-transform duration-500" />
-                </button>
-            </div>
+        <div className="flex flex-wrap gap-3">
+          <Card className="ring-border/60">
+            <CardContent className="flex items-center gap-6 px-4 py-3">
+              <div>
+                <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Native SOL
+                </p>
+                <p className="text-lg font-semibold tabular-nums">
+                  {walletBalance?.toFixed(3) ?? "—"}
+                </p>
+              </div>
+              <div className="h-8 w-px bg-border" />
+              <div>
+                <p className="text-[10px] font-medium uppercase tracking-wide text-primary">
+                  Wrapped SOL
+                </p>
+                <p className="text-lg font-semibold tabular-nums text-primary">
+                  {wsolBalance?.toFixed(3) ?? "—"}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="ring-border/60">
+            <CardContent className="flex items-center gap-3 px-4 py-3">
+              <div className="text-right">
+                <p className="text-[10px] font-medium uppercase tracking-wide text-chart-3">
+                  Oracle SOL
+                </p>
+                <p className="text-lg font-semibold tabular-nums">
+                  ${manualPrice || "—"}
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="icon-sm"
+                onClick={() => {
+                  refetchInvestments();
+                  refetchTraders();
+                }}
+              >
+                <RefreshCw className="size-4" />
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
-      {/* --- PORTFOLIO OVERVIEW CARDS --- */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          <div className="relative group overflow-hidden bg-slate-900 border border-slate-800 p-6 rounded-3xl hover:border-cyan-500/30 transition-all">
-            <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                <TrendingUp className="w-20 h-20 text-cyan-400" />
-            </div>
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Total Allocated</p>
-            <p className="text-3xl font-black text-white">
-              ${investments.reduce((acc, inv) => acc + (inv.account.initialDepositUsdValue.toNumber() / 1e6), 0).toFixed(2)}
-            </p>
-          </div>
-          <div className="relative group overflow-hidden bg-slate-900 border border-slate-800 p-6 rounded-3xl hover:border-cyan-500/30 transition-all">
-            <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                <Vault className="w-20 h-20 text-purple-400" />
-            </div>
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Portfolio Value</p>
-            <p className="text-3xl font-black text-cyan-400">
-              ${Object.values(liveStats).reduce((acc, s) => acc + s.currentValue, 0).toFixed(2)}
-            </p>
-          </div>
-          <div className="relative group overflow-hidden bg-slate-900 border border-slate-800 p-6 rounded-3xl hover:border-cyan-500/30 transition-all">
-            <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                <Activity className="w-20 h-20 text-green-400" />
-            </div>
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Net Unrealized P&L</p>
-            {(() => {
-                const totalPnl = Object.values(liveStats).reduce((acc, s) => acc + s.pnl, 0);
-                const pnlColor = totalPnl > 0.01 ? "text-green-400" : totalPnl < -0.01 ? "text-red-400" : "text-slate-400";
-                return (
-                    <p className={`text-3xl font-black ${pnlColor}`}>
-                        ${totalPnl.toFixed(2)}
-                    </p>
-                );
-            })()}
-          </div>
+      <div className="mb-10 grid gap-4 md:grid-cols-3">
+        <Card className="ring-border/60">
+          <CardHeader className="pb-2">
+            <CardDescription>Total allocated</CardDescription>
+            <CardTitle className="text-2xl font-semibold tabular-nums">
+              $
+              {investments
+                .reduce(
+                  (acc, inv) =>
+                    acc + inv.account.initialDepositUsdValue.toNumber() / 1e6,
+                  0
+                )
+                .toFixed(2)}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="ring-border/60">
+          <CardHeader className="pb-2">
+            <CardDescription>Portfolio value</CardDescription>
+            <CardTitle className="text-2xl font-semibold tabular-nums text-primary">
+              $
+              {Object.values(liveStats)
+                .reduce((acc, s) => acc + s.currentValue, 0)
+                .toFixed(2)}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="ring-border/60">
+          <CardHeader className="pb-2">
+            <CardDescription>Net unrealized P&amp;L</CardDescription>
+            <CardTitle
+              className={`text-2xl font-semibold tabular-nums ${
+                totalPnl > 0.01
+                  ? "text-chart-2"
+                  : totalPnl < -0.01
+                    ? "text-destructive"
+                    : "text-muted-foreground"
+              }`}
+            >
+              ${totalPnl.toFixed(2)}
+            </CardTitle>
+          </CardHeader>
+        </Card>
       </div>
 
-      {/* --- SECTION TABS --- */}
-      <div className="flex items-center gap-2 mb-8 bg-slate-950 p-1.5 rounded-2xl border border-slate-800 w-fit">
-          <button 
-            onClick={() => setActiveTab("investments")}
-            className={`px-6 py-3 rounded-xl text-sm font-black transition-all flex items-center gap-2 ${
-                activeTab === "investments" ? "bg-cyan-500 text-slate-950 shadow-lg shadow-cyan-500/20" : "text-slate-400 hover:text-white"
-            }`}
-          >
-            <Vault className="w-4 h-4" /> ACTIVE INVESTMENTS
-          </button>
-          <button 
-            onClick={() => setActiveTab("discover")}
-            className={`px-6 py-3 rounded-xl text-sm font-black transition-all flex items-center gap-2 ${
-                activeTab === "discover" ? "bg-cyan-500 text-slate-950 shadow-lg shadow-cyan-500/20" : "text-slate-400 hover:text-white"
-            }`}
-          >
-            <Search className="w-4 h-4" /> FIND TRADERS
-          </button>
-      </div>
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) =>
+          setActiveTab(v as "investments" | "discover")
+        }
+        className="gap-6"
+      >
+        <TabsList>
+          <TabsTrigger value="investments" className="gap-1.5">
+            <Vault className="size-4" />
+            Investments
+          </TabsTrigger>
+          <TabsTrigger value="discover" className="gap-1.5">
+            <Search className="size-4" />
+            Discover
+          </TabsTrigger>
+        </TabsList>
 
-      {/* --- CONTENT AREA --- */}
-      <div className="bg-slate-900/30 border border-slate-800 rounded-[2rem] overflow-hidden backdrop-blur-sm">
-        {activeTab === "investments" ? (
-            <div className="p-2">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="border-b border-slate-800">
-                                <th className="py-5 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Vault Detail</th>
-                                <th className="py-5 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Signal Provider</th>
-                                <th className="py-5 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Initial</th>
-                                <th className="py-5 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Gross Equity</th>
-                                <th className="py-5 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">P&L Status</th>
-                                <th className="py-5 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {loadingInvestments ? (
-                                <tr>
-                                    <td colSpan={6} className="py-20 text-center">
-                                        <div className="flex flex-col items-center gap-3">
-                                            <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
-                                            <p className="text-slate-500 font-bold text-sm">Syncing on-chain positions...</p>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ) : investments.length === 0 ? (
-                                <tr>
-                                    <td colSpan={6} className="py-32 text-center">
-                                        <div className="max-w-xs mx-auto space-y-4">
-                                            <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto opacity-50">
-                                                <Info className="w-8 h-8 text-slate-400" />
-                                            </div>
-                                            <p className="text-slate-400 font-medium">No active investments found.</p>
-                                            <button 
-                                                onClick={() => setActiveTab("discover")}
-                                                className="text-cyan-400 text-xs font-black uppercase hover:underline"
-                                            >
-                                                Start Copy-Trading Now →
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ) : (
-                                investments.map((inv) => (
-                                    <InvestmentRow 
-                                        key={inv.publicKey}
-                                        inv={inv}
-                                        stats={liveStats}
-                                        trader={traders.find(t => t.publicKey === inv.linkedTraderPubkey)}
-                                        manualPrice={manualPrice}
-                                        handleWithdraw={handleWithdraw}
-                                        submitting={submitting}
-                                    />
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+        <TabsContent value="investments" className="mt-0">
+          <Card className="overflow-hidden ring-border/60">
+            <ScrollArea className="max-h-[min(70vh,560px)] w-full">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Vault</TableHead>
+                    <TableHead>Trader</TableHead>
+                    <TableHead>Initial</TableHead>
+                    <TableHead>Gross</TableHead>
+                    <TableHead>P&amp;L</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loadingInvestments ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-40 text-center">
+                        <div className="flex flex-col items-center gap-3 py-8">
+                          <Skeleton className="size-8 rounded-full" />
+                          <p className="text-sm text-muted-foreground">
+                            Loading positions…
+                          </p>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : investments.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-48 text-center">
+                        <div className="mx-auto flex max-w-sm flex-col items-center gap-3 py-8">
+                          <Info className="size-8 text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground">
+                            No active investments.
+                          </p>
+                          <Button
+                            variant="link"
+                            className="text-primary"
+                            onClick={() => setActiveTab("discover")}
+                          >
+                            Find a trader
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    investments.map((inv) => (
+                      <InvestmentRow
+                        key={inv.publicKey}
+                        inv={inv}
+                        stats={liveStats}
+                        trader={traders.find(
+                          (t) => t.publicKey === inv.linkedTraderPubkey
+                        )}
+                        manualPrice={manualPrice}
+                        handleWithdraw={handleWithdraw}
+                        submitting={submitting}
+                      />
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="discover" className="mt-0">
+          <Card className="overflow-hidden ring-border/60">
+            <CardHeader className="flex flex-col gap-4 border-b border-border sm:flex-row sm:items-center sm:justify-between">
+              <div className="relative w-full max-w-md">
+                <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search by address…"
+                  className="h-9 pl-9 text-sm"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Filter className="size-4" />
+                Sort: lifetime P&amp;L
+              </div>
+            </CardHeader>
+            <ScrollArea className="max-h-[min(70vh,560px)] w-full">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>#</TableHead>
+                    <TableHead>Trader</TableHead>
+                    <TableHead>Lifetime P&amp;L</TableHead>
+                    <TableHead>Fee</TableHead>
+                    <TableHead>Strategy</TableHead>
+                    <TableHead className="text-right">Allocate</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loadingTraders ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-40 text-center">
+                        <div className="flex flex-col items-center gap-3 py-8">
+                          <Skeleton className="size-8 rounded-full" />
+                          <p className="text-sm text-muted-foreground">
+                            Loading traders…
+                          </p>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredTraders.map((trader, index) => (
+                      <TraderRow
+                        key={trader.publicKey}
+                        trader={trader}
+                        index={index}
+                        submitting={submitting}
+                        onDeposit={handleDeposit}
+                      />
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      <div className="mt-16 grid gap-4 md:grid-cols-2">
+        <Card className="ring-border/60">
+          <CardHeader>
+            <div className="flex gap-4">
+              <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/20">
+                <Shield className="size-6 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-base">Secure PDAs</CardTitle>
+                <CardDescription className="text-sm leading-relaxed">
+                  Funds sit in program-derived addresses. Traders cannot
+                  withdraw your principal—only you burn shares to exit.
+                </CardDescription>
+              </div>
             </div>
-        ) : (
-            <div className="p-2">
-                <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
-                    <div className="relative w-full max-w-md">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                        <input 
-                            type="text" 
-                            placeholder="Search by trader address..."
-                            className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                        />
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Filter className="w-4 h-4 text-slate-500" />
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Sort: Lifetime ROI</span>
-                    </div>
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="border-b border-slate-800">
-                                <th className="py-5 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">#</th>
-                                <th className="py-5 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Signal Provider</th>
-                                <th className="py-5 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Lifetime P&L</th>
-                                <th className="py-5 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Fee %</th>
-                                <th className="py-5 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Strategy</th>
-                                <th className="py-5 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {loadingTraders ? (
-                                <tr>
-                                    <td colSpan={6} className="py-20 text-center">
-                                        <div className="flex flex-col items-center gap-3">
-                                            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                                            <p className="text-slate-500 font-bold text-sm">Discovering top traders...</p>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ) : filteredTraders.map((trader, index) => (
-                                <TraderRow 
-                                    key={trader.publicKey}
-                                    trader={trader}
-                                    index={index}
-                                    submitting={submitting}
-                                    onDeposit={handleDeposit}
-                                    manualPrice={manualPrice}
-                                />
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+          </CardHeader>
+        </Card>
+        <Card className="ring-border/60">
+          <CardHeader>
+            <div className="flex gap-4">
+              <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/20">
+                <Vault className="size-6 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-base">Instant exit</CardTitle>
+                <CardDescription className="text-sm leading-relaxed">
+                  Redeem shares for SOL or USDC based on live vault marks—no
+                  arbitrary lock-ups.
+                </CardDescription>
+              </div>
             </div>
-        )}
+          </CardHeader>
+        </Card>
       </div>
 
-      {/* --- FOOTER INFO --- */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-20">
-        <div className="group bg-slate-900/50 border border-slate-800 p-8 rounded-[2rem] flex gap-6 hover:bg-slate-900 transition-all">
-          <div className="w-14 h-14 bg-cyan-500/10 rounded-2xl flex items-center justify-center shrink-0 border border-cyan-500/20 group-hover:scale-110 transition-transform">
-            <Shield className="text-cyan-400 w-7 h-7" />
-          </div>
-          <div className="space-y-2">
-            <h4 className="text-xl font-black tracking-tight text-white italic">SECURE PDAs</h4>
-            <p className="text-slate-400 text-sm leading-relaxed">All funds are mathematically locked in Program Derived Addresses. Traders cannot rug-pull; only the investor can burn shares to reclaim assets.</p>
-          </div>
-        </div>
-        <div className="group bg-slate-900/50 border border-slate-800 p-8 rounded-[2rem] flex gap-6 hover:bg-slate-900 transition-all">
-          <div className="w-14 h-14 bg-blue-500/10 rounded-2xl flex items-center justify-center shrink-0 border border-blue-500/20 group-hover:scale-110 transition-transform">
-            <Vault className="text-blue-400 w-7 h-7" />
-          </div>
-          <div className="space-y-2">
-            <h4 className="text-xl font-black tracking-tight text-white italic">INSTANT EXIT</h4>
-            <p className="text-slate-400 text-sm leading-relaxed">Exit any strategy at any time. Your shares are liquid and can be redeemed for SOL/USDC based on the real-time value of the vault's assets.</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-20">
+      <div className="mt-12">
         <TransactionHistory wallet={publicKey} isTrader={false} />
       </div>
     </div>

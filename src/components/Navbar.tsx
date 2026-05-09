@@ -1,91 +1,105 @@
 "use client";
+
 import Link from "next/link";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
-import { ArrowRightLeft, Landmark } from "lucide-react";
-import { useState, useEffect } from "react";
-import { useConnection } from "@solana/wallet-adapter-react";
-import { PLATFORM_BANK_SOL, PLATFORM_BANK_USDC } from "../lib/constants";
+import { ArrowRightLeft, Menu } from "lucide-react";
+import { useState, useSyncExternalStore } from "react";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
+
+const navLinks = [
+  { href: "/", label: "Home" },
+  { href: "/trader", label: "Trader" },
+  { href: "/investor", label: "Investor" },
+] as const;
+
+function useIsClient() {
+  return useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
+}
 
 export default function Navbar() {
-  const { connection } = useConnection();
-  const [mounted, setMounted] = useState(false);
-  const [bankBalances, setBankBalances] = useState<{ sol: number, usdc: number } | null>(null);
-
-  useEffect(() => {
-    setMounted(true);
-    const fetchBankBalances = async () => {
-      try {
-        // 1. Fetch SOL balance (Native SOL is easier for testing)
-        let solAmount = 0;
-        try {
-          const nativeSolBal = await connection.getBalance(PLATFORM_BANK_SOL);
-          solAmount = nativeSolBal / 1e9;
-        } catch (e) {
-          console.warn("Could not fetch Native SOL balance");
-        }
-
-        // 2. Fetch USDC balance (Token Account)
-        let usdcAmount = 0;
-        try {
-          const usdcBal = await connection.getTokenAccountBalance(PLATFORM_BANK_USDC);
-          usdcAmount = Number(usdcBal.value.amount) / 1e6;
-        } catch (e) {
-          console.warn("USDC Bank (Token Account) not initialized yet");
-        }
-
-        setBankBalances({
-          sol: solAmount,
-          usdc: usdcAmount
-        });
-      } catch (e) {
-        console.error("Critical error fetching bank balances:", e);
-      }
-    };
-    fetchBankBalances();
-    const interval = setInterval(fetchBankBalances, 10000);
-    return () => clearInterval(interval);
-  }, [connection]);
+  const mounted = useIsClient();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <nav className="fixed top-0 w-full z-50 bg-slate-900/80 backdrop-blur-md border-b border-slate-800">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          <Link href="/" className="flex items-center space-x-2">
-            <div className="bg-cyan-500/20 p-2 rounded-lg">
-              <ArrowRightLeft className="w-6 h-6 text-cyan-400" />
-            </div>
-            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500">
-              CopyCatt
-            </span>
-          </Link>
-          <div className="hidden md:flex space-x-6 items-center font-medium">
-            <Link href="/" className="text-slate-300 hover:text-white transition">Home</Link>
-            <Link href="/trader" className="text-slate-300 hover:text-white transition">Trader Portal</Link>
-            <Link href="/investor" className="text-slate-300 hover:text-white transition">Investor Portal</Link>
+    <nav className="fixed top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-md">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <Link href="/" className="flex items-center gap-2">
+          <div className="flex size-9 items-center justify-center rounded-lg bg-primary/15 ring-1 ring-primary/25">
+            <ArrowRightLeft className="size-5 text-primary" />
+          </div>
+          <span className="text-lg font-semibold tracking-tight text-foreground">
+            CopyCatt
+          </span>
+        </Link>
 
-            {/* Bank Testing Info */}
-            {/* <div className="flex items-center gap-4 px-4 py-1.5 bg-slate-950 border border-slate-800 rounded-full">
-              <Landmark className="w-4 h-4 text-amber-500" />
-              <div className="flex gap-3 text-[10px] font-bold uppercase tracking-tighter">
-                <div className="flex flex-col">
-                  <span className="text-slate-500">Bank SOL</span>
-                  <span className="text-amber-500">{bankBalances?.sol.toFixed(2) || "0.00"}</span>
-                </div>
-                <div className="w-px h-4 bg-slate-800 self-center" />
-                <div className="flex flex-col">
-                  <span className="text-slate-500">Bank USDC</span>
-                  <span className="text-amber-500">${bankBalances?.usdc.toFixed(2) || "0.00"}</span>
-                </div>
+        <div className="hidden items-center gap-1 md:flex">
+          {navLinks.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                buttonVariants({ variant: "ghost", size: "sm" }),
+                "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+            <SheetTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="md:hidden"
+                  aria-label="Open menu"
+                />
+              }
+            >
+              <Menu className="size-4" />
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[min(100vw,20rem)]">
+              <SheetHeader>
+                <SheetTitle className="text-left">Menu</SheetTitle>
+              </SheetHeader>
+              <Separator className="my-4" />
+              <div className="flex flex-col gap-1">
+                {navLinks.map((item) => (
+                  <Button
+                    key={item.href}
+                    variant="ghost"
+                    className="justify-start"
+                    render={<Link href={item.href} />}
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    {item.label}
+                  </Button>
+                ))}
               </div>
-            </div> */}
-          </div>
-          <div className="flex items-center">
-            {mounted ? (
-              <WalletMultiButton className="!bg-cyan-500 hover:!bg-cyan-600 transition-colors rounded-xl" />
-            ) : (
-              <div className="w-[150px] h-10 bg-slate-800 rounded-xl animate-pulse" />
-            )}
-          </div>
+            </SheetContent>
+          </Sheet>
+
+          {mounted ? (
+            <WalletMultiButton className="!h-9 !rounded-lg !bg-primary !px-4 !text-sm !font-medium !text-primary-foreground hover:!bg-primary/90" />
+          ) : (
+            <div className="h-9 w-[150px] animate-pulse rounded-lg bg-muted" />
+          )}
         </div>
       </div>
     </nav>
