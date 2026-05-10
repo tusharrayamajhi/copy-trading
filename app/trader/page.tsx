@@ -376,9 +376,8 @@ export default function TraderDashboard() {
                 <CardDescription>Unrealized P&amp;L</CardDescription>
                 <div className="flex items-end justify-between gap-4">
                   <CardTitle
-                    className={`text-3xl font-semibold tabular-nums ${
-                      unrealizedPnl >= 0 ? "text-chart-2" : "text-destructive"
-                    }`}
+                    className={`text-3xl font-semibold tabular-nums ${unrealizedPnl >= 0 ? "text-chart-2" : "text-destructive"
+                      }`}
                   >
                     {unrealizedPnl >= 0 ? "+" : ""}$
                     {unrealizedPnl.toFixed(2)}
@@ -407,9 +406,8 @@ export default function TraderDashboard() {
               <CardHeader>
                 <CardDescription>Lifetime realized</CardDescription>
                 <CardTitle
-                  className={`text-3xl font-semibold tabular-nums ${
-                    netRealized >= 0 ? "text-primary" : "text-destructive"
-                  }`}
+                  className={`text-3xl font-semibold tabular-nums ${netRealized >= 0 ? "text-primary" : "text-destructive"
+                    }`}
                 >
                   {netRealized >= 0 ? "+" : ""}${netRealized.toFixed(2)}
                 </CardTitle>
