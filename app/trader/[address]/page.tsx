@@ -17,8 +17,10 @@ import {
   Info,
   RefreshCw,
   Copy,
+  Settings,
 } from "lucide-react";
 import { TransactionHistory } from "../../../src/components/TransactionHistory";
+import { PnLChart } from "../../../src/components/PnLChart";
 import toast from "react-hot-toast";
 import { useDeposit } from "../../../src/hooks/useDeposit";
 import { useWrapSol } from "../../../src/hooks/useWrapSol";
@@ -150,7 +152,20 @@ export default function TraderDetailPage() {
             <ArrowLeft className="size-4" />
             Back
           </Button>
-          <Badge variant="secondary">Trader profile</Badge>
+          <div className="flex items-center gap-3">
+            {publicKey?.toBase58() === address && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push("/trader/settings")}
+                className="gap-2"
+              >
+                <Settings className="size-4" />
+                Settings
+              </Button>
+            )}
+            <Badge variant="secondary">Trader profile</Badge>
+          </div>
         </div>
       </header>
 
@@ -160,18 +175,27 @@ export default function TraderDetailPage() {
             <Card className="ring-border/60">
               <CardHeader>
                 <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-                  <div className="flex size-20 shrink-0 items-center justify-center rounded-xl bg-primary/15 ring-1 ring-primary/25">
-                    <Users className="size-9 text-primary" />
+                  <div className="flex size-20 shrink-0 items-center justify-center rounded-xl bg-primary/15 ring-1 ring-primary/25 overflow-hidden">
+                    {traderAccount.avatarUrl ? (
+                      <img src={traderAccount.avatarUrl} alt={traderAccount.name || "Trader"} className="size-full object-cover" />
+                    ) : (
+                      <Users className="size-9 text-primary" />
+                    )}
                   </div>
                   <div className="min-w-0 flex-1 space-y-4">
                     <div className="flex flex-wrap items-center gap-3">
                       <CardTitle className="text-xl sm:text-2xl">
-                        Signal provider
+                        {traderAccount.name || "Signal provider"}
                       </CardTitle>
                       <Badge variant="outline" className="text-chart-2">
                         Active
                       </Badge>
                     </div>
+                    {traderAccount.bio && (
+                      <p className="text-sm text-muted-foreground leading-relaxed max-w-2xl">
+                        {traderAccount.bio}
+                      </p>
+                    )}
                     <div className="flex flex-wrap items-center gap-2">
                       <code className="min-w-0 flex-1 truncate rounded-md border border-border bg-muted/40 px-2 py-1 text-xs">
                         {address}
@@ -233,13 +257,25 @@ export default function TraderDetailPage() {
                 </CardTitle>
                 <Badge variant="secondary">Oracle ${manualPrice}</Badge>
               </CardHeader>
-              <CardContent className="pt-6">
-                <div className="aspect-[16/10] w-full overflow-hidden rounded-xl border border-border">
-                  <iframe
-                    title="Chart"
-                    src={`https://s.tradingview.com/widgetembed/?symbol=BINANCE%3A${currentAsset === "SOL" ? "SOLUSDT" : "USDCUSDT"}&interval=D&theme=dark&style=1&timezone=Etc%2FUTC&locale=en`}
-                    className="size-full border-0"
-                  />
+              <CardContent className="space-y-8 pt-6">
+                <PnLChart address={address} />
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      Live Market View
+                    </p>
+                    <Badge variant="outline" className="text-[10px] font-mono">
+                      BINANCE:{currentAsset === "SOL" ? "SOLUSDT" : "USDCUSDT"}
+                    </Badge>
+                  </div>
+                  <div className="aspect-[16/10] w-full overflow-hidden rounded-xl border border-border">
+                    <iframe
+                      title="Chart"
+                      src={`https://s.tradingview.com/widgetembed/?symbol=BINANCE%3A${currentAsset === "SOL" ? "SOLUSDT" : "USDCUSDT"}&interval=D&theme=dark&style=1&timezone=Etc%2FUTC&locale=en`}
+                      className="size-full border-0"
+                    />
+                  </div>
                 </div>
                 <div className="mt-8 grid gap-4 md:grid-cols-2">
                   <Card className="bg-muted/20 ring-border/50">

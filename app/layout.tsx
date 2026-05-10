@@ -8,6 +8,7 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import Navbar from "@/src/components/Navbar";
+import { AuthProvider } from "@/src/components/AuthProvider";
 import { useMemo } from "react";
 
 import { rpcThrottleMiddleware } from "@/src/lib/rpc-limiter";
@@ -41,10 +42,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <WalletProvider wallets={wallets} autoConnect>
             <WalletModalProvider>
               <TooltipProvider>
-                <Navbar />
-                <div className="flex-1 mt-16 pt-8 pb-16">
-                  {children}
-                </div>
+                <AuthProvider>
+                  <Navbar />
+                  <div className="flex-1 mt-16 pt-8 pb-16">
+                    {children}
+                  </div>
+                </AuthProvider>
                 <Toaster
                   position="bottom-right"
                   toastOptions={{

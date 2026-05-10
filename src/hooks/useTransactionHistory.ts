@@ -19,6 +19,8 @@ export type TransactionHistoryItem = {
         price?: number;
         from?: string;
         to?: string;
+        pnlUsd?: number;
+        pnlPercentage?: number;
     };
 };
 
@@ -78,9 +80,16 @@ export function useTransactionHistory(wallet: PublicKey | null, isTrader: boolea
                                         
                                         if (decoded.name === "signalSwap") {
                                             const args = decoded.data as any;
+                                            const isToUsdc = !!args.targetAsset.usdc;
+                                            // If target is USDC, we are swapping FROM SOL (9 decimals)
+                                            // If target is SOL, we are swapping FROM USDC (6 decimals)
+                                            const fromAsset = isToUsdc ? "SOL" : "USDC";
+                                            const decimals = fromAsset === "SOL" ? 1e9 : 1e6;
+                                            
                                             details = {
-                                                amount: args.amountIn.toNumber() / (args.targetAsset.usdc ? 1e6 : 1e9),
-                                                asset: args.targetAsset.usdc ? "USDC" : "SOL",
+                                                amount: args.amountIn.toNumber() / decimals,
+                                                asset: fromAsset,
+                                                toAsset: isToUsdc ? "USDC" : "SOL",
                                                 price: args.price.toNumber() / 1e6,
                                             };
                                         } else if (decoded.name === "depositFunds") {
@@ -94,6 +103,7 @@ export function useTransactionHistory(wallet: PublicKey | null, isTrader: boolea
                                             const args = decoded.data as any;
                                             details = {
                                                 price: args.currentPrice.toNumber() / 1e6,
+                                                asset: "SOL" // Withdrawals are processed in SOL
                                             };
                                         }
                                     }
@@ -123,7 +133,22 @@ export function useTransactionHistory(wallet: PublicKey | null, isTrader: boolea
                 })
             )).filter((item): item is TransactionHistoryItem => item !== null);
 
-            setTransactions(detailedHistory);
+            const res = await fetch('/api/transactions/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    transactions: detailedHistory, 
+                    wallet: targetAddress.toBase58(), 
+                    isTrader 
+                })
+            });
+
+            if (res.ok) {
+                const enrichedHistory = await res.json();
+                setTransactions(enrichedHistory);
+            } else {
+                setTransactions(detailedHistory);
+            }
         } catch (error) {
             console.error("Failed to fetch transaction history:", error);
         } finally {

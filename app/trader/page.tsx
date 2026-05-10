@@ -17,7 +17,9 @@ import {
   TrendingDown as Bearish,
   Users,
   Vault,
+  Settings,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { TransactionHistory } from "../../src/components/TransactionHistory";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -35,6 +37,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 
 export default function TraderDashboard() {
+  const router = useRouter();
   const { connection } = useConnection();
   const { publicKey } = useWallet();
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
@@ -291,6 +294,13 @@ export default function TraderDashboard() {
               </div>
             </CardContent>
           </Card>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => router.push("/trader/settings")}
+          >
+            <Settings className="size-4" />
+          </Button>
           <Button
             variant="outline"
             size="icon"

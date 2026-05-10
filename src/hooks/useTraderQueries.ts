@@ -38,12 +38,29 @@ export function useAllTraders() {
 
             const accounts = await fetchWithRetry(() => (program.account as any).traderAccount.all());
             
+            // Fetch DB Profiles
+            let profileMap: Record<string, any> = {};
+            try {
+                const profileRes = await fetch("/api/traders/profiles");
+                if (profileRes.ok) {
+                    profileMap = await profileRes.json();
+                }
+            } catch (e) {
+                console.error("Failed to fetch profiles map", e);
+            }
+
             const formattedTraders = accounts
                 .filter((a: any) => a && a.publicKey && a.account)
-                .map((a: any) => ({
-                    publicKey: a.publicKey.toBase58(),
-                    account: a.account,
-                }));
+                .map((a: any) => {
+                    const wallet = a.account.traderWallet.toBase58();
+                    return {
+                        publicKey: a.publicKey.toBase58(),
+                        account: {
+                            ...a.account,
+                            ...(profileMap[wallet] || {})
+                        },
+                    };
+                });
             
             setTraders(formattedTraders);
         } catch (err) {
@@ -92,8 +109,18 @@ export function useTraderAccount(traderWallet: PublicKey | null) {
                 throw e;
             });
             
-            console.log("Fetched Data:", accountData);
-            setData(accountData);
+            // Fetch Off-chain Profile
+            let dbProfile = {};
+            try {
+                const profileRes = await fetch(`/api/trader/public-profile?address=${traderWallet.toBase58()}`);
+                if (profileRes.ok) {
+                    dbProfile = await profileRes.json();
+                }
+            } catch (e) {
+                console.error("Failed to fetch DB profile", e);
+            }
+
+            setData(accountData ? { ...accountData, ...dbProfile } : null);
         } catch (error) {
             console.error("Failed to fetch trader account:", error);
             setData(null);

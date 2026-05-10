@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { useAuth } from "./AuthProvider";
+import { useWallet } from "@solana/wallet-adapter-react";
 
 const navLinks = [
   { href: "/", label: "Home" },
@@ -32,6 +34,8 @@ function useIsClient() {
 export default function Navbar() {
   const mounted = useIsClient();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { user, login, logout, isLoading } = useAuth();
+  const { publicKey } = useWallet();
 
   return (
     <nav className="fixed top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-md">
@@ -96,7 +100,24 @@ export default function Navbar() {
           </Sheet>
 
           {mounted ? (
-            <WalletMultiButton className="!h-9 !rounded-lg !bg-primary !px-4 !text-sm !font-medium !text-primary-foreground hover:!bg-primary/90" />
+            <div className="flex items-center gap-2">
+              {!publicKey ? (
+                <WalletMultiButton className="!h-9 !rounded-lg !bg-primary !px-4 !text-sm !font-medium !text-primary-foreground hover:!bg-primary/90" />
+              ) : !user ? (
+                <Button onClick={login} disabled={isLoading} className="h-9 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+                  {isLoading ? "Loading..." : "Sign In"}
+                </Button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <div className="text-sm text-muted-foreground hidden md:block">
+                    {user.walletAddress.slice(0, 4)}...{user.walletAddress.slice(-4)}
+                  </div>
+                  <Button variant="outline" size="sm" onClick={logout} className="h-9">
+                    Log Out
+                  </Button>
+                </div>
+              )}
+            </div>
           ) : (
             <div className="h-9 w-[150px] animate-pulse rounded-lg bg-muted" />
           )}

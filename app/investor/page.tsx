@@ -54,6 +54,8 @@ interface VaultTraderAccount {
   lifetimeLossUsd: { toNumber: () => number };
   currentAsset: Record<string, unknown> | undefined;
   traderWallet: { toBase58: () => string };
+  name?: string;
+  avatarUrl?: string;
 }
 
 interface TraderListItem {
@@ -108,8 +110,12 @@ function TraderRow({
           <span className="text-xs tabular-nums text-muted-foreground">
             {(index + 1).toString().padStart(2, "0")}
           </span>
-          <div className="flex size-8 items-center justify-center rounded-md bg-primary/10 ring-1 ring-primary/20">
-            <Users className="size-4 text-primary" />
+          <div className="flex size-8 items-center justify-center rounded-md bg-primary/10 ring-1 ring-primary/20 overflow-hidden">
+            {trader.account.avatarUrl ? (
+              <img src={trader.account.avatarUrl} alt={trader.account.name || "Trader"} className="size-full object-cover" />
+            ) : (
+              <Users className="size-4 text-primary" />
+            )}
           </div>
         </div>
       </TableCell>
@@ -118,20 +124,23 @@ function TraderRow({
           href={`/trader/${trader.account.traderWallet.toBase58()}`}
           className="text-sm font-medium text-foreground hover:text-primary"
         >
-          {trader.account.traderWallet.toBase58().slice(0, 4)}…
-          {trader.account.traderWallet.toBase58().slice(-4)}
+          {trader.account.name || (
+            <>
+              {trader.account.traderWallet.toBase58().slice(0, 4)}…
+              {trader.account.traderWallet.toBase58().slice(-4)}
+            </>
+          )}
         </Link>
         <p className="text-[10px] text-muted-foreground">Trader</p>
       </TableCell>
       <TableCell className="py-4">
         <div
-          className={`flex items-center gap-1.5 text-sm font-medium tabular-nums ${
-            profit > 0.01
+          className={`flex items-center gap-1.5 text-sm font-medium tabular-nums ${profit > 0.01
               ? "text-chart-2"
               : profit < -0.01
                 ? "text-destructive"
                 : "text-muted-foreground"
-          }`}
+            }`}
         >
           {profit > 0.01 ? (
             <TrendingUp className="size-3" />
@@ -200,7 +209,7 @@ function InvestmentRow({
     (inv.account.initialDepositUsdValue?.toNumber() ?? 0) / 10 ** 6;
   const currentAsset =
     Object.keys(trader?.account?.currentAsset || {})[0]?.toLowerCase() ===
-    "usdc"
+      "usdc"
       ? "USDC"
       : "SOL";
   const stat = stats[inv.publicKey];
@@ -211,8 +220,12 @@ function InvestmentRow({
     <TableRow>
       <TableCell className="py-4">
         <div className="flex items-center gap-3">
-          <div className="flex size-8 items-center justify-center rounded-md bg-primary/10 ring-1 ring-primary/20">
-            <Vault className="size-4 text-primary" />
+          <div className="flex size-8 items-center justify-center rounded-md bg-primary/10 ring-1 ring-primary/20 overflow-hidden">
+            {trader?.account?.avatarUrl ? (
+              <img src={trader.account.avatarUrl} alt={trader?.account?.name || "Trader"} className="size-full object-cover" />
+            ) : (
+              <Vault className="size-4 text-primary" />
+            )}
           </div>
           <div>
             <p className="text-sm font-medium">#{inv.publicKey.slice(0, 6)}</p>
@@ -224,8 +237,12 @@ function InvestmentRow({
       </TableCell>
       <TableCell className="py-4">
         <p className="text-sm font-medium">
-          {trader?.account?.traderWallet?.toBase58()?.slice(0, 4)}…
-          {trader?.account?.traderWallet?.toBase58()?.slice(-4)}
+          {trader?.account?.name || (
+            <>
+              {trader?.account?.traderWallet?.toBase58()?.slice(0, 4)}…
+              {trader?.account?.traderWallet?.toBase58()?.slice(-4)}
+            </>
+          )}
         </p>
         <p className="text-[10px] text-muted-foreground">
           Strategy · {currentAsset}
@@ -528,13 +545,12 @@ export default function InvestorDashboard() {
           <CardHeader className="pb-2">
             <CardDescription>Net unrealized P&amp;L</CardDescription>
             <CardTitle
-              className={`text-2xl font-semibold tabular-nums ${
-                totalPnl > 0.01
+              className={`text-2xl font-semibold tabular-nums ${totalPnl > 0.01
                   ? "text-chart-2"
                   : totalPnl < -0.01
                     ? "text-destructive"
                     : "text-muted-foreground"
-              }`}
+                }`}
             >
               ${totalPnl.toFixed(2)}
             </CardTitle>

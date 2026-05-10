@@ -1,0 +1,120 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  TRADER
+  INVESTOR
+}
+
+enum AssetType {
+  SOL
+  USDC
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAW
+  SWAP
+}
+
+model User {
+  id            String   @id @default(uuid())
+  walletAddress String   @unique
+  role          Role     @default(INVESTOR)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  traderProfile   TraderProfile?
+  investorProfile InvestorProfile?
+}
+
+model TraderProfile {
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                 String?
+  bio                  String?
+  avatarUrl            String?
+  commissionPercentage Int      @default(0) // Stored in basis points (e.g., 500 = 5%)
+  totalTrades          Int      @default(0)
+  lifetimeProfitUsd    Float    @default(0)
+  lifetimeLossUsd      Float    @default(0)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  vaults Vault[]
+}
+
+model Vault {
+  id                  String        @id @default(uuid())
+  traderId            String
+  trader              TraderProfile @relation(fields: [traderId], references: [id], onDelete: Cascade)
+  vaultPda            String        @unique
+  sharesMint          String        @unique
+  solAta              String
+  usdcAta             String
+  currentAsset        AssetType     @default(SOL)
+  totalShares         Float         @default(0) // Total supply of share tokens minted for this vault
+  totalSharesValueUsd Float         @default(0)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  investments  Investment[]
+  transactions Transaction[]
+}
+
+model InvestorProfile {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  investments  Investment[]
+  transactions Transaction[]
+}
+
+model Investment {
+  id                     String          @id @default(uuid())
+  investorId             String
+  investor               InvestorProfile @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  vaultId                String
+  vault                  Vault           @relation(fields: [vaultId], references: [id], onDelete: Cascade)
+  investorPda            String          @unique
+  initialDepositUsdValue Float           @default(0)
+  sharesOwned            Float           @default(0)
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+
+  @@unique([investorId, vaultId]) // An investor should have one active investment record per vault
+}
+
+model Transaction {
+  id          String           @id @default(uuid())
+  type        TransactionType
+  vaultId     String
+  vault       Vault            @relation(fields: [vaultId], references: [id], onDelete: Cascade)
+  investorId  String?
+  investor    InvestorProfile? @relation(fields: [investorId], references: [id], onDelete: SetNull)
+  amount               Float // The amount transacted (in tokens or USD depending on context)
+  asset                AssetType // The asset involved
+  priceUsd             Float // The price of SOL in USD at the time of transaction
+
+  // Detailed Swap Metrics (Only populated for SWAP type transactions)
+  previousSwapPriceUsd Float? // The price of SOL during the previous swap to calculate relative performance
+  pnlUsd               Float? // Realized PnL in USD for the vault during this swap
+  pnlPercentage        Float? // Realized PnL percentage for the vault
+
+  txSignature          String           @unique // Solana transaction signature
+  timestamp            DateTime         @default(now())
+}

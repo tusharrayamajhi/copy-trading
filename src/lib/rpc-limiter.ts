@@ -141,7 +141,11 @@ export const rpcThrottleMiddleware = async (
 
         try {
             const response = await fetch(info, options);
-            console.log(response)
+            
+            if (!response) {
+                throw new Error("Fetch returned undefined");
+            }
+
             if (response.status === 429) {
                 rpcLimiter.recordResponse(0);
                 const waitTime = Math.pow(2, retries) * 1000 + Math.random() * 500;
