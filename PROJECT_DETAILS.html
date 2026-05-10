@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solana Copy-Trading Platform | Project Details</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'dark' });
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0c;
+            --accent-purple: #9945FF;
+            --accent-cyan: #14F195;
+            --glass: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-dark);
+            color: #e2e8f0;
+            overflow-x: hidden;
+        }
+        .gradient-bg {
+            background: radial-gradient(circle at 50% -20%, #2d1b4d 0%, #0a0a0c 60%);
+        }
+        .glass-card {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 1.5rem;
+            transition: all 0.3s ease;
+        }
+        .glass-card:hover {
+            border-color: var(--accent-purple);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px -10px rgba(153, 69, 255, 0.2);
+        }
+        .text-gradient {
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .mermaid {
+            background: transparent !important;
+        }
+        pre {
+            background: #1a1a1e !important;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            border: 1px solid var(--glass-border);
+        }
+        .step-number {
+            width: 32px;
+            height: 32px;
+            background: var(--accent-purple);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 1rem;
+        }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen">
+
+    <!-- Header -->
+    <header class="max-w-7xl mx-auto px-6 py-12 text-center">
+        <h1 class="text-6xl font-bold mb-4 tracking-tight">
+            Solana <span class="text-gradient">Copy-Trade</span> V2
+        </h1>
+        <p class="text-xl text-gray-400 max-w-2xl mx-auto">
+            A premium, non-custodial decentralized copy-trading platform built for the Solana ecosystem. 
+            Empowering traders and rewarding investors through transparent on-chain vaults.
+        </p>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-6 pb-24 space-y-24">
+
+        <!-- 1. Project Overview -->
+        <section id="overview" class="glass-card p-10">
+            <h2 class="text-3xl font-bold mb-6 flex items-center">
+                <span class="text-accent-cyan mr-3">#</span> Project Mission
+            </h2>
+            <div class="grid md:grid-cols-2 gap-12">
+                <div class="space-y-4">
+                    <p class="text-lg leading-relaxed text-gray-300">
+                        Defi Copy-Trade V2 addresses the lack of transparency in traditional social trading. By leveraging Solana's high-speed blockchain, we ensure every trade, deposit, and withdrawal is verifiable on-chain.
+                    </p>
+                    <ul class="space-y-3">
+                        <li class="flex items-center text-gray-300">
+                            <span class="w-2 h-2 bg-accent-cyan rounded-full mr-3"></span>
+                            Non-Custodial: Users always retain control via PDAs.
+                        </li>
+                        <li class="flex items-center text-gray-300">
+                            <span class="w-2 h-2 bg-accent-cyan rounded-full mr-3"></span>
+                            Real-time Sync: Hybrid architecture for instant feedback.
+                        </li>
+                        <li class="flex items-center text-gray-300">
+                            <span class="w-2 h-2 bg-accent-cyan rounded-full mr-3"></span>
+                            Performance Driven: Automated fee and commission logic.
+                        </li>
+                    </ul>
+                </div>
+                <div class="bg-black/40 rounded-xl p-6 border border-white/5">
+                    <h3 class="text-xl font-semibold mb-4 text-accent-purple">Quick Stats Support</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="p-4 bg-white/5 rounded-lg">
+                            <div class="text-2xl font-bold text-white">400ms</div>
+                            <div class="text-sm text-gray-400">Avg. Sync Speed</div>
+                        </div>
+                        <div class="p-4 bg-white/5 rounded-lg">
+                            <div class="text-2xl font-bold text-white">0%</div>
+                            <div class="text-sm text-gray-400">Custodial Risk</div>
+                        </div>
+                        <div class="p-4 bg-white/5 rounded-lg">
+                            <div class="text-2xl font-bold text-white">SOL/USDC</div>
+                            <div class="text-sm text-gray-400">Native Support</div>
+                        </div>
+                        <div class="p-4 bg-white/5 rounded-lg">
+                            <div class="text-2xl font-bold text-white">Jupiter</div>
+                            <div class="text-sm text-gray-400">DEX Integration</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. Architecture Diagram -->
+        <section id="architecture" class="glass-card p-10">
+            <h2 class="text-3xl font-bold mb-8 flex items-center">
+                <span class="text-accent-purple mr-3">#</span> Technical Architecture
+            </h2>
+            
+            <div class="mermaid mb-10 overflow-x-auto">
+                graph TD
+                    subgraph "Frontend (Next.js 15)"
+                        UI[React Dashboard] --> Hooks[Wallet Hooks]
+                        UI --> Charts[Lightweight Charts]
+                    end
+
+                    subgraph "On-Chain (Solana / Anchor)"
+                        PC[Platform Config PDA]
+                        Vault[Trader Vault PDA]
+                        Shares[Shares Mint Token]
+                        Inv[Investor Account PDA]
+                        
+                        Vault -->|Holds| Assets[SOL / USDC ATA]
+                        Shares -->|Proof of Stake| Inv
+                    end
+
+                    subgraph "Off-Chain (PostgreSQL / Prisma)"
+                        Sync[Event Listener / Webhooks]
+                        DB[(Postgres DB)]
+                        API[Next.js API Routes]
+                    end
+
+                    UI -->|Transaction| Vault
+                    Vault -->|Events| Sync
+                    Sync -->|Update State| DB
+                    API -->|Fetch Analytics| DB
+                    DB --> UI
+                    
+                    Vault -.->|Swap| Jupiter[Jupiter DEX API]
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-8 mt-12">
+                <div class="space-y-4">
+                    <h3 class="text-xl font-semibold text-accent-cyan">On-Chain Flow</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed">
+                        The core logic resides in a custom Anchor program. When a trader signals a swap, the Vault PDA interacts with the Jupiter Aggregator. Investors deposit into the Vault and receive "Share Tokens" which represent their equity. Withdrawals calculate profit and distribute commissions to the trader and platform automatically.
+                    </p>
+                </div>
+                <div class="space-y-4">
+                    <h3 class="text-xl font-semibold text-accent-purple">Off-Chain Flow</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed">
+                        We use a PostgreSQL database to cache on-chain state for instant UI performance. A synchronization engine listens for Solana transaction signatures, fetches the instruction data, and updates the database. This allows for complex PnL calculations and historical charting that would be too slow/expensive to do purely on-chain.
+                    </p>
+                </div>
+            </div>
+            <!-- Architecture Explanation in Comments -->
+            <!-- 
+                ARCHITECTURE DETAIL EXPLAINED:
+                1. Program-Derived Addresses (PDAs): Used for Vaults and Investor Accounts to ensure non-custodial security.
+                2. Share Token System: Inspired by ERC-4626 but optimized for Solana's programming model.
+                3. Auto-Rebalancing: If a trader is in a USDC position and an investor deposits SOL, the program automatically 
+                   converts that SOL to USDC using the platform's liquidity bank to maintain the vault's target asset ratio.
+                4. Sync Engine: Uses a 'polling + signature' strategy to ensure the database matches the blockchain state within milliseconds.
+            -->
+        </section>
+
+        <!-- 3. Technology Stack -->
+        <section id="tech-stack" class="space-y-8">
+            <h2 class="text-3xl font-bold text-center">Powering the <span class="text-gradient">Next Generation</span> of DeFi</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Next.js -->
+                <div class="glass-card p-6">
+                    <div class="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center mb-4">
+                        <svg class="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm6.75 18l-5.625-7.5h1.125v-1.125h-2.625l4.125 5.625v1.875h-1.875v-1.125l-4.125-5.625h-1.125v7.875h-1.5v-9h2.25l5.25 7.125v-7.125h1.5v9z"/></svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Next.js 15+</h3>
+                    <p class="text-sm text-gray-400">App Router & Server Components for SEO and high-performance server-side rendering of dashboards.</p>
+                </div>
+                <!-- Solana/Anchor -->
+                <div class="glass-card p-6">
+                    <div class="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center mb-4 text-purple-400">
+                        <svg class="w-8 h-8" viewBox="0 0 24 24" fill="currentColor"><path d="M1.2 18.3h21.6v2.1H1.2zm2.1-5.7h21.6v2.1H3.3zm-2.1-5.7h21.6v2.1H1.2z"/></svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Anchor (Solana)</h3>
+                    <p class="text-sm text-gray-400">The industry standard for secure Solana programs. Handles PDAs, token transfers, and complex vault logic.</p>
+                </div>
+                <!-- Prisma -->
+                <div class="glass-card p-6">
+                    <div class="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center mb-4 text-blue-400">
+                        <svg class="w-8 h-8" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Prisma + PG</h3>
+                    <p class="text-sm text-gray-400">Type-safe database access with PostgreSQL. Essential for tracking trade history and PnL analytics.</p>
+                </div>
+                <!-- Jupiter -->
+                <div class="glass-card p-6">
+                    <div class="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center mb-4 text-green-400">
+                        <svg class="w-8 h-8" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Jupiter API</h3>
+                    <p class="text-sm text-gray-400">Best price execution for swaps. Automatically finds the most efficient routes across Solana DEXs.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. UI Forms Explanation -->
+        <section id="ui-forms" class="glass-card p-10">
+            <h2 class="text-3xl font-bold mb-8">User Experience & Forms</h2>
+            <div class="grid md:grid-cols-2 gap-8">
+                <div class="p-6 bg-white/5 rounded-2xl border border-white/10">
+                    <h3 class="text-lg font-semibold mb-3 text-accent-cyan">Trader Onboarding</h3>
+                    <p class="text-sm text-gray-400 mb-4">Allows traders to set their personality and fee structure.</p>
+                    <div class="text-xs space-y-2">
+                        <div class="flex justify-between border-b border-white/5 pb-1"><span>Form Name</span> <span>Profile Setup</span></div>
+                        <div class="flex justify-between border-b border-white/5 pb-1"><span>Inputs</span> <span>Name, Bio, Avatar, Commission %</span></div>
+                        <div class="flex justify-between"><span>Validation</span> <span>Commission max 20%</span></div>
+                    </div>
+                </div>
+                <div class="p-6 bg-white/5 rounded-2xl border border-white/10">
+                    <h3 class="text-lg font-semibold mb-3 text-accent-purple">Vault Execution (Swap)</h3>
+                    <p class="text-sm text-gray-400 mb-4">The core interaction for traders to manage the vault assets.</p>
+                    <div class="text-xs space-y-2">
+                        <div class="flex justify-between border-b border-white/5 pb-1"><span>Form Name</span> <span>Signal Swap</span></div>
+                        <div class="flex justify-between border-b border-white/5 pb-1"><span>Inputs</span> <span>Target Asset, Amount, Slippage</span></div>
+                        <div class="flex justify-between"><span>Action</span> <span>On-chain program call</span></div>
+                    </div>
+                </div>
+                <div class="p-6 bg-white/5 rounded-2xl border border-white/10">
+                    <h3 class="text-lg font-semibold mb-3 text-white">Investment Management</h3>
+                    <p class="text-sm text-gray-400 mb-4">Simple, clean interface for investors to enter or exit positions.</p>
+                    <div class="text-xs space-y-2">
+                        <div class="flex justify-between border-b border-white/5 pb-1"><span>Form Name</span> <span>Deposit / Withdraw</span></div>
+                        <div class="flex justify-between border-b border-white/5 pb-1"><span>Inputs</span> <span>SOL Amount</span></div>
+                        <div class="flex justify-between"><span>Feedback</span> <span>Estimated Shares / Net Exit Value</span></div>
+                    </div>
+                </div>
+                <div class="p-6 bg-white/5 rounded-2xl border border-white/10">
+                    <h3 class="text-lg font-semibold mb-3 text-gray-300">Analytics Dashboard</h3>
+                    <p class="text-sm text-gray-400 mb-4">Visualizing financial performance using charting libraries.</p>
+                    <div class="text-xs space-y-2">
+                        <div class="flex justify-between border-b border-white/5 pb-1"><span>Visuals</span> <span>PnL Chart (Area), Transaction History</span></div>
+                        <div class="flex justify-between border-b border-white/5 pb-1"><span>Data Source</span> <span>Prisma API + Live Price Feed</span></div>
+                        <div class="flex justify-between"><span>Libraries</span> <span>Lightweight Charts, Lucide</span></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. 3-Minute Technical Video Script -->
+        <section id="video-script" class="glass-card p-10 bg-gradient-to-br from-gray-900 to-black">
+            <div class="flex justify-between items-center mb-8">
+                <h2 class="text-3xl font-bold">Technical Video Script (3:00)</h2>
+                <span class="px-4 py-1 bg-accent-purple/20 text-accent-purple border border-accent-purple/50 rounded-full text-sm">Target: Developers/Investors</span>
+            </div>
+            
+            <div class="space-y-8">
+                <!-- Intro -->
+                <div class="flex">
+                    <div class="step-number">1</div>
+                    <div>
+                        <h4 class="font-bold text-accent-cyan">0:00 - 0:30 | The Hook & Problem</h4>
+                        <p class="text-gray-400 italic">"In traditional social trading, you're often trusting a centralized black box. You see a number on a screen, but do you actually own those assets? Welcome to Defi Copy-Trade V2 on Solana."</p>
+                        <p class="text-sm mt-2">Visual: Show cinematic close-ups of the Dashboard UI and the 'Connect Wallet' animation.</p>
+                    </div>
+                </div>
+
+                <!-- Tech Deep Dive -->
+                <div class="flex">
+                    <div class="step-number">2</div>
+                    <div>
+                        <h4 class="font-bold text-accent-cyan">0:30 - 1:30 | On-Chain Architecture</h4>
+                        <p class="text-gray-400 italic">"Our architecture is built on Anchor. When a trader creates a profile, we initialize a dedicated Vault PDA. This vault isn't just a ledger entry—it's a secure on-chain container for SOL and USDC. When you invest, the program mints Share Tokens to your wallet. If the trader swaps to USDC while you're depositing SOL, our unique auto-balancing logic converts your assets instantly, ensuring zero slippage in strategy execution."</p>
+                        <p class="text-sm mt-2">Visual: Screen recording of the Mermaid diagram and snippets of the Anchor program (lib.rs).</p>
+                    </div>
+                </div>
+
+                <!-- Sync & UX -->
+                <div class="flex">
+                    <div class="step-number">3</div>
+                    <div>
+                        <h4 class="font-bold text-accent-cyan">1:30 - 2:15 | The Hybrid Advantage</h4>
+                        <p class="text-gray-400 italic">"Blockchain is slow to query, so we built a high-speed synchronization engine. Using Prisma and PostgreSQL, we track every transaction signature. This powers our real-time PnL charts and transaction history, giving users a CEX-like experience with DEX-level security. We use Jupiter's API for the best execution prices, making sure every swap is optimized for the vault's performance."</p>
+                        <p class="text-sm mt-2">Visual: Show the PnL charts updating in real-time and the Jupiter swap interface.</p>
+                    </div>
+                </div>
+
+                <!-- Conclusion -->
+                <div class="flex">
+                    <div class="step-number">4</div>
+                    <div>
+                        <h4 class="font-bold text-accent-cyan">2:15 - 3:00 | Conclusion & Call to Action</h4>
+                        <p class="text-gray-400 italic">"Defi Copy-Trade V2 isn't just a platform; it's a transparency revolution. Whether you're a professional trader looking to monetize your skill or an investor seeking passive DeFi yields, this is the future of social trading. Secure, non-custodial, and blazing fast. Build with us on Solana."</p>
+                        <p class="text-sm mt-2">Visual: Final shot of the full dashboard and 'Join the Community' button.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-white/5 py-12 text-center text-gray-500 text-sm">
+        <p>&copy; 2026 Defi Copy-Trade V2. Built with ❤️ on Solana.</p>
+    </header>
+
+</body>
+</html>

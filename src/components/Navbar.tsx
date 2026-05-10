@@ -103,10 +103,11 @@ export default function Navbar() {
             <div className="flex items-center gap-2">
               {!publicKey ? (
                 <WalletMultiButton className="!h-9 !rounded-lg !bg-primary !px-4 !text-sm !font-medium !text-primary-foreground hover:!bg-primary/90" />
-              ) : !user ? (
-                <Button onClick={login} disabled={isLoading} className="h-9 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-                  {isLoading ? "Loading..." : "Sign In"}
-                </Button>
+              ) : !user || isLoading ? (
+                <div className="flex items-center gap-2">
+                  <div className="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  <span className="text-sm text-muted-foreground">Authenticating...</span>
+                </div>
               ) : (
                 <div className="flex items-center gap-2">
                   <div className="text-sm text-muted-foreground hidden md:block">
