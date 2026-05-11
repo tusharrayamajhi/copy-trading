@@ -14,7 +14,7 @@ export default function PriceChart({ symbol = "Crypto.SOL/USD" }) {
             layout: { background: { color: "#0f172a" }, textColor: "#e2e8f0" },
             grid: { vertLines: { color: "#1e293b" }, horzLines: { color: "#1e293b" } },
         });
-        const series = chart.addSeries(LineSeries, { color: "#8b5cf6" });
+        const series = chart.addSeries(LineSeries, { color: "#7ed957" });
 
         // Poll Pyth Hermes for price
         const fetchPrice = async () => {

@@ -11,6 +11,8 @@ import {
   RefreshCw,
   BarChart3,
   Zap,
+  Maximize2,
+  Minimize2,
   ShoppingCart,
   Tag,
   TrendingUp as Bullish,
@@ -56,6 +58,16 @@ export default function TraderDashboard() {
   const [submitting, setSubmitting] = useState(false);
   const [commission, setCommission] = useState(10);
   const [manualPrice, setManualPrice] = useState<string>("");
+  const [isChartExpanded, setIsChartExpanded] = useState(false);
+
+  useEffect(() => {
+    if (!isChartExpanded) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setIsChartExpanded(false);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isChartExpanded]);
 
   useEffect(() => {
     const fetchPrice = async () => {
@@ -334,13 +346,23 @@ export default function TraderDashboard() {
               <Badge variant="secondary">{currentAsset} exposure</Badge>
             </CardHeader>
             <CardContent className="space-y-6 pt-6">
-              <div className="aspect-[16/10] w-full overflow-hidden rounded-xl border border-border bg-muted/30">
+              <div className="relative aspect-16/10 w-full overflow-hidden rounded-xl border border-border bg-muted/30">
+                <button
+                  type="button"
+                  onClick={() => setIsChartExpanded(true)}
+                  className="absolute right-3 top-3 z-10 inline-flex items-center gap-2 rounded-md border border-border/70 bg-background/70 px-2.5 py-1.5 text-xs font-medium text-muted-foreground backdrop-blur-sm transition-colors hover:text-foreground"
+                  aria-label="Expand chart"
+                >
+                  <Maximize2 className="size-4" />
+                  Expand
+                </button>
                 <iframe
-                  title="Chart"
-                  src="https://s.tradingview.com/widgetembed/?symbol=BINANCE%3ASOLUSDT&interval=D&theme=dark&style=1&timezone=Etc%2FUTC&locale=en"
+                  title="SOL/USD chart"
+                  src="https://s.tradingview.com/widgetembed/?symbol=COINBASE%3ASOLUSD&interval=60&theme=dark&style=1&timezone=Etc%2FUTC&locale=en"
                   className="size-full border-0"
                 />
               </div>
+
               <div className="grid gap-3 md:grid-cols-2">
                 <Button
                   variant="outline"
@@ -358,6 +380,7 @@ export default function TraderDashboard() {
                   </span>
                   <ShoppingCart className="size-5 shrink-0" />
                 </Button>
+
                 <Button
                   variant="outline"
                   className="h-auto justify-between gap-4 py-4"
@@ -377,6 +400,66 @@ export default function TraderDashboard() {
               </div>
             </CardContent>
           </Card>
+
+          {isChartExpanded && (
+            <div
+              className="fixed inset-0 z-60 bg-black/70 backdrop-blur-sm"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Expanded chart"
+              onClick={() => setIsChartExpanded(false)}
+            >
+              <div
+                className="absolute inset-4 overflow-hidden rounded-2xl border border-border bg-background/90 shadow-2xl md:inset-10"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between border-b border-border/70 bg-muted/20 px-4 py-3">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <BarChart3 className="size-4 text-primary" />
+                      SOL / USD
+                  </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={submitting || currentAsset === "SOL"}
+                        onClick={() => handleSwap("Sol")}
+                        className="gap-2"
+                      >
+                        <ShoppingCart className="size-4" />
+                        Buy SOL
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={submitting || currentAsset === "USDC"}
+                        onClick={() => handleSwap("Usdc")}
+                        className="gap-2"
+                      >
+                        <Tag className="size-4" />
+                        Sell to USDC
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsChartExpanded(false)}
+                        className="gap-2"
+                      >
+                        <Minimize2 className="size-4" />
+                        Collapse
+                      </Button>
+                    </div>
+                </div>
+                <div className="h-[calc(100%-49px)]">
+                  <iframe
+                    title="SOL/USD chart expanded"
+                    src="https://s.tradingview.com/widgetembed/?symbol=COINBASE%3ASOLUSD&interval=60&theme=dark&style=1&timezone=Etc%2FUTC&locale=en"
+                    className="size-full border-0"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="grid gap-4 md:grid-cols-2">
             {/* Unrealized PnL Card — SOL primary */}

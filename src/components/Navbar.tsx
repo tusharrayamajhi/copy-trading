@@ -45,15 +45,15 @@ export default function Navbar() {
         <Link href="/" className="flex items-center gap-2">
           <div className="flex size-9 items-center justify-center overflow-hidden rounded-lg bg-primary/15 ring-1 ring-primary/25">
             <Image 
-              src="/logo.png" 
-              alt="CopyCat Logo" 
+              src="/copycatt logo.png" 
+              alt="CopyCatt logo" 
               width={36} 
               height={36} 
               className="object-cover"
             />
           </div>
           <span className="text-lg font-bold tracking-tight text-foreground">
-            CopyCat
+            CopyCatt
           </span>
         </Link>
 

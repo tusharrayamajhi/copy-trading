@@ -32,8 +32,7 @@ import { ArchitectureCanvas } from "@/src/components/ArchitectureCanvas";
 const features = [
   {
     title: "Transparency",
-    description:
-      "Every signal, swap, and distribution is visible on-chain via secure PDAs.",
+    description: "Every signal, move, and payout is visible on-chain.",
     icon: Globe,
   },
   {
@@ -54,20 +53,18 @@ const features = [
       "Live P&L context with oracle-backed pricing for a data-first dashboard.",
     icon: PieChart,
   },
-] as const;
+] as const
 
 const flow = [
   {
     step: "01",
     role: "Investor",
-    detail:
-      "PDA record, mirrored execution, share ownership, exit anytime.",
+    detail: "Deposit SOL, receive vault shares, exit anytime.",
   },
   {
     step: "02",
-    role: "Vault PDA",
-    detail:
-      "Token storage, shared portfolio, pricing inputs, routed swaps.",
+    role: "Vault",
+    detail: "Token storage, shared portfolio, pricing inputs, routed swaps.",
   },
   {
     step: "03",
@@ -75,17 +72,17 @@ const flow = [
     detail:
       "Strategy and signals, performance fee—no direct investor fund access.",
   },
-] as const;
+] as const
 
 const transparencyFeature = features[0];
 const TransparencyFeatureIcon = transparencyFeature.icon;
 const secondaryFeatures = features.slice(1);
 
 const heroChecks = [
-  "Self-custodial vault shares",
-  "Oracle-aware execution context",
-  "Built for Solana mainnet workflows",
-] as const;
+  "No CEX copy account",
+  "No API key handover",
+  "Vault shares you can verify on-chain",
+] as const
 
 const fade = {
   hidden: { opacity: 0, y: 16 },
@@ -130,10 +127,7 @@ export default function Home() {
   return (
     <main className="relative min-h-screen overflow-hidden bg-background text-foreground">
       {/* Ambient: single soft wash + grid (Vercel-adjacent, still minimal) */}
-      <div
-        className="pointer-events-none absolute inset-0"
-        aria-hidden
-      >
+      <div className="pointer-events-none absolute inset-0" aria-hidden>
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_85%_55%_at_50%_-18%,rgba(139,92,246,0.09),transparent_55%)]" />
         <div
           className="absolute inset-0 opacity-[0.35]"
@@ -165,7 +159,7 @@ export default function Home() {
                     variant="secondary"
                     className="rounded-md px-3 py-1 font-normal"
                   >
-                    CopyCat
+                    CopyCatt
                   </Badge>
                   <span className="text-xs text-muted-foreground">
                     Non-custodial · Solana
@@ -176,12 +170,10 @@ export default function Home() {
                   <h1 className="text-[2.5rem] font-semibold leading-[1.08] tracking-tight text-balance sm:text-5xl lg:text-[3.35rem] lg:leading-[1.06]">
                     Copy trading
                     <span className="text-muted-foreground"> without </span>
-                    <span className="text-primary">the noise</span>
+                    <span className="text-primary">the trust fall</span>
                   </h1>
-                  <p className="max-w-[34rem] text-base leading-relaxed text-muted-foreground md:text-lg md:leading-relaxed">
-                    A calm, data-forward terminal for following signal providers
-                    on-chain—clear roles, explicit risk, and custody that never
-                    leaves your keys.
+                  <p className="max-w-136 text-base leading-relaxed text-muted-foreground md:text-lg md:leading-relaxed">
+                    Copy trading works. The setup is broken. CopyCatt lets you follow via on-chain vaults no exchange custody, no API keys.
                   </p>
                 </div>
 
@@ -263,7 +255,10 @@ export default function Home() {
                       <BarChart3 className="size-4 text-primary" />
                       Live feed
                     </CardTitle>
-                    <Badge variant="outline" className="font-normal text-chart-2">
+                    <Badge
+                      variant="outline"
+                      className="font-normal text-chart-2"
+                    >
                       <span className="mr-1.5 size-1.5 rounded-full bg-chart-2" />
                       Synced
                     </Badge>
@@ -271,16 +266,44 @@ export default function Home() {
                   <CardDescription>Illustrative terminal view</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-5 pt-6">
-                  <div className="flex items-end justify-between gap-2 rounded-lg border border-border/70 bg-background/50 px-3 py-3">
+                  <div className="relative flex items-end justify-between gap-2 overflow-hidden rounded-lg border border-border/70 bg-background/50 px-3 py-3">
+                    {/* subtle scanline */}
+                    <motion.div
+                      aria-hidden
+                      className="pointer-events-none absolute inset-y-0 left-0 w-24 bg-linear-to-r from-transparent via-primary/10 to-transparent"
+                      initial={reduce ? false : { x: "-40%" }}
+                      animate={reduce ? undefined : { x: ["-40%", "140%"] }}
+                      transition={{
+                        duration: 2.8,
+                        repeat: Infinity,
+                        ease: "linear",
+                      }}
+                    />
+
                     <div className="flex h-14 flex-1 items-end justify-between gap-0.5">
                       {[40, 65, 35, 80, 55, 90, 48, 72, 44, 68, 52, 85].map(
                         (h, i) => (
-                          <div
+                          <motion.div
                             key={i}
                             className="w-full max-w-[6px] rounded-sm bg-primary/25"
-                            style={{ height: `${h}%`, minHeight: "10px" }}
+                            style={{ minHeight: "10px" }}
+                            initial={reduce ? false : { height: `${h}%`, opacity: 0.6 }}
+                            animate={
+                              reduce
+                                ? undefined
+                                : {
+                                    height: [`${Math.max(10, h - 18)}%`, `${h}%`, `${Math.max(10, h - 10)}%`],
+                                    opacity: [0.5, 0.9, 0.6],
+                                  }
+                            }
+                            transition={{
+                              duration: 1.9 + (i % 5) * 0.18,
+                              repeat: Infinity,
+                              ease: "easeInOut",
+                              delay: i * 0.03,
+                            }}
                           />
-                        )
+                        ),
                       )}
                     </div>
                     <span className="font-mono text-[10px] text-muted-foreground">
@@ -290,22 +313,31 @@ export default function Home() {
 
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground">Signal</span>
-                    <span className="font-mono text-foreground">SOL / USDC</span>
+                    <span className="font-mono text-foreground">
+                      SOL / USDC
+                    </span>
                   </div>
                   <Separator />
                   {[
                     { label: "Trader", value: "+2.4% ROI" },
                     { label: "Vault shares", value: "Mint ok" },
                     { label: "Latency", value: "48 ms" },
-                  ].map((row) => (
-                    <div
+                  ].map((row, idx) => (
+                    <motion.div
                       key={row.label}
                       className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/25 px-3 py-2.5"
+                      initial={reduce ? false : { opacity: 0, y: 6 }}
+                      animate={reduce ? undefined : { opacity: 1, y: 0 }}
+                      transition={{ duration: 0.35, delay: 0.05 + idx * 0.05 }}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="flex size-8 items-center justify-center rounded-md bg-background ring-1 ring-border">
+                        <motion.div
+                          className="flex size-8 items-center justify-center rounded-md bg-background ring-1 ring-border"
+                          animate={reduce ? undefined : { boxShadow: ["0 0 0px rgba(126,217,87,0)", "0 0 12px rgba(126,217,87,0.12)", "0 0 0px rgba(126,217,87,0)"] }}
+                          transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut", delay: idx * 0.2 }}
+                        >
                           <Activity className="size-4 text-muted-foreground" />
-                        </div>
+                        </motion.div>
                         <div>
                           <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                             {row.label}
@@ -316,7 +348,7 @@ export default function Home() {
                         </div>
                       </div>
                       <ChevronRight className="size-4 text-muted-foreground" />
-                    </div>
+                    </motion.div>
                   ))}
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4 border-t border-border bg-muted/15 sm:flex-row sm:items-end sm:justify-between">
@@ -346,7 +378,7 @@ export default function Home() {
           <div className="mx-auto max-w-7xl px-6">
             <MotionBlock className="mb-14 max-w-2xl space-y-3">
               <p className="text-xs font-medium uppercase tracking-widest text-primary">
-                Why CopyCat
+                Why CopyCatt
               </p>
               <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">
                 Protocol pillars
@@ -358,10 +390,7 @@ export default function Home() {
             </MotionBlock>
 
             <div className="grid gap-12 lg:grid-cols-12 lg:gap-10">
-              <MotionBlock
-                className="space-y-5 lg:col-span-4"
-                index={0}
-              >
+              <MotionBlock className="space-y-5 lg:col-span-4" index={0}>
                 <Card className="h-full border-border/80 bg-background/40 ring-1 ring-border/60">
                   <CardHeader>
                     <CardTitle className="text-base">Design goals</CardTitle>
@@ -389,10 +418,7 @@ export default function Home() {
               </MotionBlock>
 
               <div className="grid gap-4 lg:col-span-8 lg:grid-cols-3 lg:grid-rows-2">
-                <MotionBlock
-                  className="lg:col-span-1 lg:row-span-2"
-                  index={1}
-                >
+                <MotionBlock className="lg:col-span-1 lg:row-span-2" index={1}>
                   <Card className="h-full ring-1 ring-border/70">
                     <CardHeader className="pb-3">
                       <div className="mb-3 flex size-11 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20">
@@ -410,9 +436,7 @@ export default function Home() {
                 {secondaryFeatures.map((f, i) => (
                   <MotionBlock
                     key={f.title}
-                    className={cn(
-                      i === 2 && "lg:col-span-2"
-                    )}
+                    className={cn(i === 2 && "lg:col-span-2")}
                     index={i + 2}
                   >
                     <Card className="h-full ring-1 ring-border/70">
@@ -481,7 +505,7 @@ export default function Home() {
                         <p
                           className={cn(
                             "mt-1 font-mono text-2xl font-semibold tabular-nums",
-                            s.tone === "primary" && "text-primary"
+                            s.tone === "primary" && "text-primary",
                           )}
                         >
                           {s.value}
@@ -552,7 +576,7 @@ export default function Home() {
         <footer className="border-t border-border py-12">
           <div className="mx-auto flex max-w-7xl flex-col items-center gap-6 px-6 sm:flex-row sm:justify-between">
             <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
-              CopyCat · Solana · 2026
+              CopyCatt · Solana · 2026
             </p>
             <nav className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground">
               <Link href="/investor" className="hover:text-foreground">
@@ -569,5 +593,5 @@ export default function Home() {
         </footer>
       </div>
     </main>
-  );
+  )
 }

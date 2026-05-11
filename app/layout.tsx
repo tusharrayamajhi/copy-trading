@@ -9,12 +9,12 @@ import { cn } from "@/lib/utils";
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: "CopyCat | Solana Copy-Trading",
-  description: "A premium, non-custodial decentralized copy-trading platform built for the Solana ecosystem.",
+  title: "CopyCatt | Solana Copy Trading",
+  description: "On-chain, vault-based copy-style trading for Solana.",
   icons: {
-    icon: "/favicon.ico",
-    shortcut: "/logo.png",
-    apple: "/logo.png",
+    icon: "/copycatt logo.png",
+    shortcut: "/copycatt logo.png",
+    apple: "/copycatt logo.png",
   },
 };
 

@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const nonceRes = await fetch("/api/auth/nonce");
       const { nonce } = await nonceRes.json();
 
-      const message = new TextEncoder().encode(`Sign this message for authenticating with CopyCat. Nonce: ${nonce}`);
+      const message = new TextEncoder().encode(`Sign this message for authenticating with CopyCatt. Nonce: ${nonce}`);
       const signature = await signMessage(message);
 
       const verifyRes = await fetch("/api/auth/verify", {

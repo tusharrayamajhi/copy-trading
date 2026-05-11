@@ -15,7 +15,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
     }
 
-    const message = new TextEncoder().encode(`Sign this message for authenticating with CopyCat. Nonce: ${nonce}`);
+    const message = new TextEncoder().encode(`Sign this message for authenticating with CopyCatt. Nonce: ${nonce}`);
     const signatureUint8 = bs58.decode(signature);
     const publicKeyUint8 = bs58.decode(publicKey);
 
