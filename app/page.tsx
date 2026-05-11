@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { ArchitectureCanvas } from "@/src/components/ArchitectureCanvas";
 
 const features = [
   {
@@ -164,7 +165,7 @@ export default function Home() {
                     variant="secondary"
                     className="rounded-md px-3 py-1 font-normal"
                   >
-                    CopyCatt
+                    CopyCat
                   </Badge>
                   <span className="text-xs text-muted-foreground">
                     Non-custodial · Solana
@@ -345,7 +346,7 @@ export default function Home() {
           <div className="mx-auto max-w-7xl px-6">
             <MotionBlock className="mb-14 max-w-2xl space-y-3">
               <p className="text-xs font-medium uppercase tracking-widest text-primary">
-                Why CopyCatt
+                Why CopyCat
               </p>
               <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">
                 Protocol pillars
@@ -447,33 +448,7 @@ export default function Home() {
             </p>
           </MotionBlock>
 
-          <div className="grid gap-6 md:grid-cols-3">
-            {flow.map((step, i) => (
-              <MotionBlock key={step.role} index={i}>
-                <div className="relative h-full">
-                  {i < flow.length - 1 ? (
-                    <div
-                      className="absolute top-10 left-[calc(50%+3.5rem)] hidden h-px w-[calc(100%-2rem)] bg-gradient-to-r from-border to-transparent md:block"
-                      aria-hidden
-                    />
-                  ) : null}
-                  <Card className="relative h-full overflow-hidden ring-1 ring-border/70">
-                    <div className="absolute right-4 top-4 font-mono text-[10px] tabular-nums text-muted-foreground/70">
-                      {step.step}
-                    </div>
-                    <CardHeader className="pt-8">
-                      <Badge variant="secondary" className="w-fit font-medium">
-                        {step.role}
-                      </Badge>
-                      <CardDescription className="pt-3 text-sm leading-relaxed">
-                        {step.detail}
-                      </CardDescription>
-                    </CardHeader>
-                  </Card>
-                </div>
-              </MotionBlock>
-            ))}
-          </div>
+          <ArchitectureCanvas />
         </section>
 
         <section className="mx-auto max-w-7xl px-6 pb-28">
@@ -577,7 +552,7 @@ export default function Home() {
         <footer className="border-t border-border py-12">
           <div className="mx-auto flex max-w-7xl flex-col items-center gap-6 px-6 sm:flex-row sm:justify-between">
             <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
-              CopyCatt · Solana · 2026
+              CopyCat · Solana · 2026
             </p>
             <nav className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground">
               <Link href="/investor" className="hover:text-foreground">

@@ -275,9 +275,14 @@ function InvestmentRow({
         <span className="text-sm font-medium tabular-nums text-primary">
           {netSolReturn.toFixed(4)} SOL
         </span>
-        <p className="text-[10px] text-muted-foreground">
+        <p className="text-[10px] text-muted-foreground tabular-nums">
           ≈ ${(stat?.currentValue || 0).toFixed(2)} net
         </p>
+        {stat && stat.pnl !== 0 && (
+          <p className={`text-[10px] tabular-nums font-medium ${stat.pnl > 0 ? "text-chart-2" : "text-destructive"}`}>
+            {stat.pnl > 0 ? "▲" : "▼"} P&L {stat.pnl > 0 ? "+" : ""}{(stat.pnl / solPrice).toFixed(4)} SOL
+          </p>
+        )}
       </TableCell>
       <TableCell className="py-4 text-right">
         <Button
@@ -515,45 +520,54 @@ export default function InvestorDashboard() {
       </div>
 
       <div className="mb-10 grid gap-4 md:grid-cols-3">
+        {/* Total Allocated — show SOL primary */}
         <Card className="ring-border/60">
           <CardHeader className="pb-2">
             <CardDescription>Total allocated</CardDescription>
             <CardTitle className="text-2xl font-semibold tabular-nums">
-              $
-              {investments
-                .reduce(
-                  (acc, inv) =>
-                    acc + inv.account.initialDepositUsdValue.toNumber() / 1e6,
-                  0
-                )
-                .toFixed(2)}
+              {Number(manualPrice) > 0
+                ? (investments.reduce((acc, inv) => acc + inv.account.initialDepositUsdValue.toNumber() / 1e6, 0) / Number(manualPrice)).toFixed(4)
+                : "—"}{" "}
+              <span className="text-base font-normal text-muted-foreground">SOL</span>
             </CardTitle>
+            <p className="text-xs text-muted-foreground tabular-nums">
+              ≈ ${investments.reduce((acc, inv) => acc + inv.account.initialDepositUsdValue.toNumber() / 1e6, 0).toFixed(2)} USD
+            </p>
           </CardHeader>
         </Card>
+
+        {/* Portfolio Value — show SOL primary */}
         <Card className="ring-border/60">
           <CardHeader className="pb-2">
             <CardDescription>Portfolio value</CardDescription>
             <CardTitle className="text-2xl font-semibold tabular-nums text-primary">
-              $
-              {Object.values(liveStats)
-                .reduce((acc, s) => acc + s.currentValue, 0)
-                .toFixed(2)}
+              {Number(manualPrice) > 0
+                ? (Object.values(liveStats).reduce((acc, s) => acc + s.currentValue, 0) / Number(manualPrice)).toFixed(4)
+                : "—"}{" "}
+              <span className="text-base font-normal text-muted-foreground">SOL</span>
             </CardTitle>
+            <p className="text-xs text-muted-foreground tabular-nums">
+              ≈ ${Object.values(liveStats).reduce((acc, s) => acc + s.currentValue, 0).toFixed(2)} USD
+            </p>
           </CardHeader>
         </Card>
+
+        {/* Net P&L — show SOL primary + split trading vs market */}
         <Card className="ring-border/60">
           <CardHeader className="pb-2">
             <CardDescription>Net unrealized P&amp;L</CardDescription>
             <CardTitle
-              className={`text-2xl font-semibold tabular-nums ${totalPnl > 0.01
-                  ? "text-chart-2"
-                  : totalPnl < -0.01
-                    ? "text-destructive"
-                    : "text-muted-foreground"
-                }`}
+              className={`text-2xl font-semibold tabular-nums ${
+                totalPnl > 0.01 ? "text-chart-2" : totalPnl < -0.01 ? "text-destructive" : "text-muted-foreground"
+              }`}
             >
-              ${totalPnl.toFixed(2)}
+              {totalPnl >= 0 ? "+" : ""}
+              {Number(manualPrice) > 0 ? (totalPnl / Number(manualPrice)).toFixed(4) : "—"}{" "}
+              <span className="text-base font-normal text-muted-foreground">SOL</span>
             </CardTitle>
+            <p className="text-xs text-muted-foreground tabular-nums">
+              ≈ {totalPnl >= 0 ? "+" : ""}${totalPnl.toFixed(2)} USD
+            </p>
           </CardHeader>
         </Card>
       </div>

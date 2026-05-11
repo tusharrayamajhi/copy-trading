@@ -251,10 +251,18 @@ export default function TraderDashboard() {
   const livePrice = Number(manualPrice) || 0;
   const liveVaultValueUsd = vaultBalances.sol * livePrice + vaultBalances.usdc;
   const initialVaultValueUsd = traderAccount.totalSharesValueUsd.toNumber() / 1e6;
+  // Trading PnL: difference from strategy swaps (realized, on-chain)
+  const tradingPnlUsd = netRealized;
+  const tradingPnlSol = livePrice > 0 ? tradingPnlUsd / livePrice : 0;
+  // Unrealized PnL: live vault value vs cost basis (includes SOL price movement)
   const unrealizedPnl =
     initialVaultValueUsd > 0.01 ? liveVaultValueUsd - initialVaultValueUsd : 0;
+  const unrealizedPnlSol = livePrice > 0 ? unrealizedPnl / livePrice : 0;
   const pnlPercent =
     initialVaultValueUsd > 0.01 ? (unrealizedPnl / initialVaultValueUsd) * 100 : 0;
+  // Market movement component = unrealized - trading (i.e. from SOL price change)
+  const marketMovementUsd = unrealizedPnl - tradingPnlUsd;
+  const marketMovementSol = livePrice > 0 ? marketMovementUsd / livePrice : 0;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
@@ -371,46 +379,69 @@ export default function TraderDashboard() {
           </Card>
 
           <div className="grid gap-4 md:grid-cols-2">
+            {/* Unrealized PnL Card — SOL primary */}
             <Card className="ring-border/60">
-              <CardHeader>
-                <CardDescription>Unrealized P&amp;L</CardDescription>
-                <div className="flex items-end justify-between gap-4">
-                  <CardTitle
-                    className={`text-3xl font-semibold tabular-nums ${unrealizedPnl >= 0 ? "text-chart-2" : "text-destructive"
-                      }`}
-                  >
-                    {unrealizedPnl >= 0 ? "+" : ""}$
-                    {unrealizedPnl.toFixed(2)}
-                  </CardTitle>
-                  <Badge variant="outline" className="tabular-nums">
-                    {pnlPercent.toFixed(2)}%
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardDescription>Unrealized P&amp;L</CardDescription>
+                  <Badge variant="outline" className="tabular-nums text-xs">
+                    {pnlPercent >= 0 ? "+" : ""}{pnlPercent.toFixed(2)}%
                   </Badge>
                 </div>
+                {/* SOL — primary denomination */}
+                <CardTitle
+                  className={`text-3xl font-semibold tabular-nums ${unrealizedPnlSol >= 0 ? "text-chart-2" : "text-destructive"}`}
+                >
+                  {unrealizedPnlSol >= 0 ? "+" : ""}{unrealizedPnlSol.toFixed(4)} SOL
+                </CardTitle>
+                <p className="text-xs text-muted-foreground tabular-nums">
+                  ≈ {unrealizedPnl >= 0 ? "+" : ""}${unrealizedPnl.toFixed(2)} USD
+                </p>
               </CardHeader>
-              <CardContent className="space-y-2 text-sm">
+              <CardContent className="space-y-2 border-t border-border pt-3 text-xs">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Mark value</span>
                   <span className="font-medium tabular-nums">
-                    ${liveVaultValueUsd.toFixed(2)}
+                    {(liveVaultValueUsd / (livePrice || 1)).toFixed(4)} SOL
+                    <span className="ml-1 text-muted-foreground">≈ ${liveVaultValueUsd.toFixed(2)}</span>
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Principal basis</span>
+                  <span className="text-muted-foreground">Cost basis</span>
                   <span className="tabular-nums text-muted-foreground">
-                    ${initialVaultValueUsd.toFixed(2)}
+                    {(initialVaultValueUsd / (livePrice || 1)).toFixed(4)} SOL
+                    <span className="ml-1">≈ ${initialVaultValueUsd.toFixed(2)}</span>
                   </span>
+                </div>
+                <div className="mt-2 rounded-md bg-muted/40 p-2 space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">↳ Trading strategy</span>
+                    <span className={`tabular-nums font-medium ${tradingPnlSol >= 0 ? "text-chart-2" : "text-destructive"}`}>
+                      {tradingPnlSol >= 0 ? "+" : ""}{tradingPnlSol.toFixed(4)} SOL
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">↳ SOL price move</span>
+                    <span className={`tabular-nums ${marketMovementSol >= 0 ? "text-chart-3" : "text-muted-foreground"}`}>
+                      {marketMovementSol >= 0 ? "+" : ""}{marketMovementSol.toFixed(4)} SOL
+                    </span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
+
+            {/* Lifetime Realized Card — SOL primary */}
             <Card className="ring-border/60">
-              <CardHeader>
-                <CardDescription>Lifetime realized</CardDescription>
+              <CardHeader className="pb-2">
+                <CardDescription>Lifetime realized (trading only)</CardDescription>
                 <CardTitle
-                  className={`text-3xl font-semibold tabular-nums ${netRealized >= 0 ? "text-primary" : "text-destructive"
-                    }`}
+                  className={`text-3xl font-semibold tabular-nums ${tradingPnlSol >= 0 ? "text-primary" : "text-destructive"}`}
                 >
-                  {netRealized >= 0 ? "+" : ""}${netRealized.toFixed(2)}
+                  {tradingPnlSol >= 0 ? "+" : ""}{tradingPnlSol.toFixed(4)} SOL
                 </CardTitle>
+                <p className="text-xs text-muted-foreground tabular-nums">
+                  ≈ {netRealized >= 0 ? "+" : ""}${netRealized.toFixed(2)} USD
+                </p>
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-3">
                 <div className="rounded-lg border border-border bg-muted/30 p-3">
@@ -418,16 +449,20 @@ export default function TraderDashboard() {
                     Profits
                   </p>
                   <p className="mt-1 font-semibold tabular-nums">
-                    ${realizedProfit.toFixed(2)}
+                    {(realizedProfit / (livePrice || 1)).toFixed(4)}
+                    <span className="ml-1 text-[10px] font-normal text-muted-foreground">SOL</span>
                   </p>
+                  <p className="text-[10px] text-muted-foreground">≈ ${realizedProfit.toFixed(2)}</p>
                 </div>
                 <div className="rounded-lg border border-border bg-muted/30 p-3">
                   <p className="text-[10px] font-medium uppercase tracking-wide text-destructive">
                     Losses
                   </p>
                   <p className="mt-1 font-semibold tabular-nums">
-                    ${realizedLoss.toFixed(2)}
+                    {(realizedLoss / (livePrice || 1)).toFixed(4)}
+                    <span className="ml-1 text-[10px] font-normal text-muted-foreground">SOL</span>
                   </p>
+                  <p className="text-[10px] text-muted-foreground">≈ ${realizedLoss.toFixed(2)}</p>
                 </div>
               </CardContent>
             </Card>
