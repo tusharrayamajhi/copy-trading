@@ -112,14 +112,24 @@ pub mod defi_copy_trade {
             )?;
         }
 
-        // 3. Mint Shares
+        // 3. Mint Shares using Live NAV
+        let vault_sol = ctx.accounts.trader_vault_token_sol.amount;
+        let vault_usdc = ctx.accounts.trader_vault_token_usdc.amount;
+        
+        let total_vault_usd_after = ((vault_sol as u128 * price as u128 / 1_000_000_000)
+            + vault_usdc as u128) as u64;
+            
         let total_supply = ctx.accounts.trader_vault_shares_mint.supply;
+        
         let shares_to_mint = if total_supply == 0 {
-            trader_account.total_shares_value_usd = 0;
             deposit_usd_value
         } else {
+            // Calculate value before this deposit to find the correct share price
+            let vault_usd_before = total_vault_usd_after.saturating_sub(deposit_usd_value);
+            require!(vault_usd_before > 0, ErrorCode::VaultEmpty);
+            
             (deposit_usd_value as u128 * total_supply as u128
-                / trader_account.total_shares_value_usd as u128) as u64
+                / vault_usd_before as u128) as u64
         };
 
         let vault_seeds: &[&[u8]] = &[
@@ -142,7 +152,7 @@ pub mod defi_copy_trade {
         )?;
 
         ctx.accounts.investor_account.initial_deposit_usd_value += deposit_usd_value;
-        trader_account.total_shares_value_usd += deposit_usd_value;
+        trader_account.total_shares_value_usd = total_vault_usd_after;
 
         Ok(())
     }
