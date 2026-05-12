@@ -28,6 +28,10 @@ import { cn } from "@/lib/utils";
 interface TransactionHistoryProps {
   wallet: PublicKey;
   isTrader?: boolean;
+  investments?: Array<{
+    vaultId: string;
+    ownershipPercentage: number;
+  }>;
 }
 
 type FilterType = "all" | "deposit" | "swap" | "withdraw";
@@ -35,8 +39,10 @@ type FilterType = "all" | "deposit" | "swap" | "withdraw";
 export function TransactionHistory({
   wallet,
   isTrader = true,
+  investments = [],
 }: TransactionHistoryProps) {
-  const { transactions, loading } = useTransactionHistory(wallet, isTrader);
+  const traderVaults = investments.map(i => i.vaultId);
+  const { transactions, loading } = useTransactionHistory(wallet, isTrader, traderVaults);
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
 
   const filters: FilterType[] = isTrader 
@@ -172,7 +178,14 @@ export function TransactionHistory({
             </p>
           </div>
         ) : (
-          filteredTransactions.map((tx) => (
+          filteredTransactions.map((tx) => {
+            const vaultAddress = (tx.details as any)?.vaultAddress;
+            const investment = !isTrader ? investments.find(inv => inv.vaultId === vaultAddress) : null;
+            const ownershipRatio = investment ? (investment.ownershipPercentage / 100) : 1;
+            
+            const displayPnlUsd = tx.details?.pnlUsd !== undefined ? tx.details.pnlUsd * (isTrader ? 1 : ownershipRatio) : null;
+
+            return (
             <div
               key={tx.signature}
               className="rounded-lg border border-border bg-card/50 p-4 transition-colors hover:bg-muted/30"
@@ -255,13 +268,13 @@ export function TransactionHistory({
                         </p>
                       </div>
                     )}
-                    {tx.details.pnlUsd !== undefined && tx.details.pnlUsd !== null && tx.details.pnlPercentage !== undefined && tx.details.pnlPercentage !== null && (
+                    {displayPnlUsd !== null && tx.details?.pnlPercentage !== undefined && tx.details?.pnlPercentage !== null && (
                       <div className="flex-1 min-w-[110px]">
                         <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                           Realized P&amp;L
                         </p>
-                        <p className={`mt-0.5 font-medium tabular-nums whitespace-nowrap ${tx.details.pnlUsd > 0 ? "text-chart-2" : tx.details.pnlUsd < 0 ? "text-destructive" : ""}`}>
-                          {tx.details.pnlUsd > 0 ? "+" : ""}${tx.details.pnlUsd.toFixed(2)}
+                        <p className={`mt-0.5 font-medium tabular-nums whitespace-nowrap ${displayPnlUsd > 0 ? "text-chart-2" : displayPnlUsd < 0 ? "text-destructive" : ""}`}>
+                          {displayPnlUsd > 0 ? "+" : ""}${displayPnlUsd.toFixed(2)}
                           <span className="ml-1 text-[10px] opacity-70">
                             ({tx.details.pnlPercentage > 0 ? "+" : ""}{tx.details.pnlPercentage.toFixed(1)}%)
                           </span>
@@ -283,7 +296,7 @@ export function TransactionHistory({
                 </>
               )}
             </div>
-          ))
+          )})
         )}
       </CardContent>
     </Card>

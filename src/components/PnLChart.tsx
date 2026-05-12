@@ -7,9 +7,10 @@ import { TrendingUp, TrendingDown, Activity } from "lucide-react";
 
 interface PnLChartProps {
   address: string;
+  data?: { time: number; value: number }[];
 }
 
-export function PnLChart({ address }: PnLChartProps) {
+export function PnLChart({ address, data: propData }: PnLChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Area"> | null>(null);
@@ -19,11 +20,19 @@ export function PnLChart({ address }: PnLChartProps) {
   useEffect(() => {
     const fetchHistory = async () => {
       try {
-        const res = await fetch(`/api/traders/${address}/pnl`);
-        const data = await res.json();
+        let chartData = propData;
         
-        if (Array.isArray(data) && chartContainerRef.current) {
-          setTotalPnl(data[data.length - 1]?.value || 0);
+        // If no prop data provided, fetch from API fallback
+        if (!chartData || chartData.length === 0) {
+          const res = await fetch(`/api/traders/${address}/pnl`);
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            chartData = data;
+          }
+        }
+        
+        if (chartData && chartData.length > 0 && chartContainerRef.current) {
+          setTotalPnl(chartData[chartData.length - 1]?.value || 0);
           
           if (!chartRef.current) {
             const chart = createChart(chartContainerRef.current, {
@@ -49,7 +58,7 @@ export function PnLChart({ address }: PnLChartProps) {
               handleScale: false,
             });
 
-            const isPositive = (data[data.length - 1]?.value || 0) >= 0;
+            const isPositive = (chartData[chartData.length - 1]?.value || 0) >= 0;
             const themeColor = isPositive ? "#10b981" : "#ef4444";
 
             const areaSeries = chart.addSeries(AreaSeries, {
@@ -59,7 +68,7 @@ export function PnLChart({ address }: PnLChartProps) {
               lineWidth: 2,
             });
 
-            areaSeries.setData(data);
+            areaSeries.setData(chartData as any);
             chart.timeScale().fitContent();
 
             seriesRef.current = areaSeries;
@@ -72,6 +81,11 @@ export function PnLChart({ address }: PnLChartProps) {
             };
 
             window.addEventListener("resize", handleResize);
+            setLoading(false);
+          } else {
+            // Update existing chart data
+            seriesRef.current?.setData(chartData as any);
+            chartRef.current.timeScale().fitContent();
             setLoading(false);
           }
         }

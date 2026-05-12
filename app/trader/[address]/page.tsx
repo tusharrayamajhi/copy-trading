@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useState, useEffect } from "react";
 import { useTraderAccount } from "../../../src/hooks/useTraderQueries";
+import { useTransactionHistory } from "../../../src/hooks/useTransactionHistory";
 import { PublicKey } from "@solana/web3.js";
 import {
   ArrowLeft,
@@ -43,6 +44,7 @@ export default function TraderDetailPage() {
 
   const traderPubkey = new PublicKey(address);
   const { data: traderAccount, loading, refetch } = useTraderAccount(traderPubkey);
+  const { transactions, pnlHistory, loading: loadingHistory } = useTransactionHistory(traderPubkey, true);
 
   const deposit = useDeposit();
   const { wrap } = useWrapSol();
@@ -258,7 +260,7 @@ export default function TraderDetailPage() {
                 <Badge variant="secondary">Oracle ${manualPrice}</Badge>
               </CardHeader>
               <CardContent className="space-y-8 pt-6">
-                <PnLChart address={address} />
+                <PnLChart address={address} data={pnlHistory} />
 
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">

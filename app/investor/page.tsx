@@ -497,8 +497,8 @@ export default function InvestorDashboard() {
           <Card className="ring-border/60">
             <CardContent className="flex items-center gap-3 px-4 py-3">
               <div className="text-right">
-                <p className="text-[10px] font-medium uppercase tracking-wide text-chart-3">
-                  Oracle SOL
+                <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                  SOL Price
                 </p>
                 <p className="text-lg font-semibold tabular-nums">
                   ${manualPrice || "—"}
@@ -750,7 +750,14 @@ export default function InvestorDashboard() {
       </div>
 
       <div className="mt-12">
-        <TransactionHistory wallet={publicKey} isTrader={false} />
+        <TransactionHistory 
+          wallet={publicKey} 
+          isTrader={false} 
+          investments={Object.entries(liveStats).map(([pubkey, stat]) => ({
+            vaultId: traders.find(t => t.publicKey === investments.find(i => i.publicKey === pubkey)?.linkedTraderPubkey)?.publicKey || "",
+            ownershipPercentage: stat.ownershipPercentage
+          }))}
+        />
       </div>
     </div>
   );
